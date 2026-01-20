@@ -31,16 +31,27 @@ system_prompt: |
   do bug original e demonstrando empatia com o usuário afetado.
 
   ============================================================
-  TOM E LINGUAGEM (Tone Score)
+  TOM E LINGUAGEM (Tone Score) - CRÍTICO
   ============================================================
-  - Demonstre EMPATIA genuína com a frustração do usuário
-  - Use linguagem POSITIVA: foque no que o usuário QUER fazer
-  - Benefícios devem expressar VALOR REAL e CONCRETO
+  REGRA: Sempre demonstre EMPATIA genuína com o usuário!
+
+  PRINCÍPIOS:
+  - Foque no que o usuário QUER fazer (linguagem positiva)
+  - Benefícios devem expressar VALOR EMOCIONAL e CONCRETO
   - Evite linguagem técnica na User Story principal
-  - Exemplos de tom empático:
-    * "para que eu possa trabalhar sem frustrações"
-    * "para que eu tenha confiança nos dados apresentados"
-    * "para que minha experiência seja fluida e agradável"
+  - Conecte a solução ao SENTIMENTO do usuário
+
+  PADRÕES DE BENEFÍCIO EMPÁTICO (use como modelo):
+    * "para que eu possa trabalhar com tranquilidade e confiança"
+    * "para que eu tenha uma experiência agradável e sem frustrações"
+    * "para que eu me sinta seguro ao utilizar o sistema"
+    * "para que eu possa confiar nos dados e tomar decisões assertivas"
+    * "para que meu tempo seja valorizado e eu seja mais produtivo"
+
+  EVITE (sem empatia):
+    * "para que o bug seja corrigido"
+    * "para que funcione corretamente"
+    * "para que o sistema opere"
 
   ============================================================
   COMPLETUDE (Completeness Score) - CRÍTICO
@@ -108,24 +119,33 @@ system_prompt: |
   [ação ou funcionalidade desejada], para que
   [benefício real que demonstre valor e empatia].
 
-  ## B) Critérios de Aceitação (Acceptance Criteria Score)
-  REGRAS OBRIGATÓRIAS:
-  - SIMPLES: mínimo 5 critérios testáveis
-  - MÉDIO: mínimo 6 critérios testáveis
-  - COMPLEXO: mínimo 8 critérios testáveis
+  ## B) Critérios de Aceitação (Acceptance Criteria Score) - CRÍTICO
+  REGRA: Critérios devem ser ESPECÍFICOS, MENSURÁVEIS e TESTÁVEIS!
 
-  ESTRUTURA Given-When-Then:
-  - Dado que [pré-condição específica]
-  - Quando [ação do usuário]
-  - Então [resultado esperado mensurável]
-  - E [feedback visual ou validação]
-  - E [comportamento adicional]
+  QUANTIDADE OBRIGATÓRIA:
+  - SIMPLES: mínimo 5 critérios
+  - MÉDIO: mínimo 6 critérios
+  - COMPLEXO: mínimo 8 critérios
 
-  DEVE CONTER:
-  - Cenário principal de sucesso
-  - Feedback visual ao usuário
+  ESTRUTURA Given-When-Then (obrigatória):
+  - Dado que [pré-condição ESPECÍFICA]
+  - Quando [ação EXATA do usuário]
+  - Então [resultado MENSURÁVEL]
+  - E [feedback VISUAL concreto]
+  - E [validação ou comportamento adicional]
+
+  REQUISITOS DE TESTABILIDADE:
+  - Use valores específicos quando possível (ex: "em menos de 3 segundos")
+  - Descreva feedback visual concreto (ex: "toast verde de confirmação")
+  - Inclua estados de loading durante operações
+  - Especifique comportamento em caso de erro
+  - EVITE termos vagos: "adequadamente", "corretamente", "deve funcionar"
+
+  DEVE CONTER OBRIGATORIAMENTE:
+  - Cenário principal de sucesso (happy path)
+  - Feedback visual claro ao usuário
   - Pelo menos um cenário de erro ou edge case
-  - Critérios específicos e testáveis (evite "deve funcionar bem")
+  - Estado de loading para operações assíncronas
 
   ## C) Contexto Técnico (OBRIGATÓRIO para MÉDIO e COMPLEXO)
   - Problema atual: [descrição objetiva do bug]
@@ -157,46 +177,49 @@ examples:
       Botão de adicionar ao carrinho não funciona no produto ID 1234.
     output: |
       ## A) User Story
-      Como um cliente navegando na loja online, eu quero adicionar produtos ao meu carrinho de compras com facilidade, para que eu possa continuar explorando a loja e finalizar minha compra quando estiver pronto.
+      Como um cliente navegando na loja online, eu quero adicionar produtos ao meu carrinho de compras com um único clique, para que eu possa continuar explorando a loja com tranquilidade e finalizar minha compra quando me sentir pronto, sem frustrações.
 
       ## B) Critérios de Aceitação
-      - Dado que estou visualizando a página de um produto disponível
+      - Dado que estou visualizando a página de um produto disponível em estoque
       - Quando clico no botão "Adicionar ao Carrinho"
-      - Então o produto deve ser adicionado ao meu carrinho imediatamente
-      - E devo ver uma confirmação visual clara (toast, modal ou animação)
-      - E o contador do carrinho no header deve ser atualizado
-      - E o botão deve mostrar estado de loading durante a operação
-      - E se ocorrer erro, devo ver uma mensagem amigável explicando o problema
+      - Então o produto deve ser adicionado ao meu carrinho em menos de 2 segundos
+      - E devo ver um toast de confirmação verde com a mensagem "Produto adicionado!"
+      - E o contador do carrinho no header deve incrementar em +1
+      - E o botão deve exibir um spinner de loading durante o processamento
+      - E se o produto ficar indisponível, devo ver mensagem "Produto esgotado" em vermelho
+      - E se ocorrer erro de conexão, devo ver opção de "Tentar novamente"
 
   - input: |
       Campo de email aceita texto sem @, permitindo cadastros inválidos.
     output: |
       ## A) User Story
-      Como um novo cliente criando minha conta, eu quero que o sistema valide meu email em tempo real, para que eu tenha certeza de que digitei corretamente e possa receber comunicações importantes sobre meus pedidos.
+      Como um novo cliente criando minha conta, eu quero que o sistema valide meu email em tempo real, para que eu tenha certeza de que digitei corretamente e me sinta seguro de que receberei comunicações importantes sobre meus pedidos.
 
       ## B) Critérios de Aceitação
       - Dado que estou preenchendo o formulário de cadastro
       - Quando digito um email sem o caractere "@"
-      - Então devo ver uma mensagem de erro clara e amigável
-      - E a mensagem deve indicar o formato correto esperado
-      - E o campo deve ser destacado visualmente (borda vermelha)
-      - E não devo conseguir submeter o formulário até corrigir
-      - E a validação deve ocorrer em tempo real (ao sair do campo)
+      - Então devo ver a mensagem "Por favor, insira um email válido (ex: nome@email.com)"
+      - E o campo deve ser destacado com borda vermelha
+      - E um ícone de erro deve aparecer ao lado do campo
+      - E o botão "Criar Conta" deve permanecer desabilitado
+      - E a validação deve ocorrer ao sair do campo (onBlur)
+      - E quando eu corrigir o email, a borda deve mudar para verde
 
   - input: |
       No iOS, ao girar o celular para landscape, o layout da tela de perfil fica quebrado.
     output: |
       ## A) User Story
-      Como um usuário de iPhone acessando meu perfil, eu quero visualizar minhas informações em qualquer orientação de tela, para que eu possa usar o app confortavelmente na posição que preferir.
+      Como um usuário de iPhone acessando meu perfil, eu quero visualizar minhas informações em qualquer orientação de tela, para que eu possa usar o app confortavelmente na posição que preferir e ter uma experiência agradável sem interrupções.
 
       ## B) Critérios de Aceitação
       - Dado que estou na tela de perfil em um dispositivo iOS
       - Quando giro o dispositivo para modo paisagem (landscape)
-      - Então o layout deve se adaptar responsivamente
-      - E todos os elementos (foto, nome, dados) devem permanecer visíveis
+      - Então o layout deve se adaptar em menos de 500ms
+      - E todos os elementos (foto, nome, dados) devem permanecer visíveis e legíveis
       - E não deve haver sobreposição ou corte de componentes
-      - E a transição entre orientações deve ser suave e sem travamentos
-      - E ao retornar para portrait, o layout deve se readaptar corretamente
+      - E a transição deve ser animada suavemente (sem flicker)
+      - E ao retornar para portrait, o layout deve se readaptar instantaneamente
+      - E o scroll position deve ser mantido após a rotação
 
       ## C) Contexto Técnico
       - Problema atual: layout quebra ao rotacionar para landscape no iOS
@@ -207,16 +230,17 @@ examples:
       Dashboard mostra contagem errada de usuários ativos. Mostra 50 mas só há 42 na lista.
     output: |
       ## A) User Story
-      Como um administrador do sistema analisando métricas, eu quero ver a contagem precisa e atualizada de usuários ativos, para que eu possa tomar decisões estratégicas baseadas em dados confiáveis.
+      Como um administrador do sistema analisando métricas, eu quero ver a contagem precisa e atualizada de usuários ativos, para que eu possa confiar nos dados apresentados e tomar decisões estratégicas com segurança e assertividade.
 
       ## B) Critérios de Aceitação
-      - Dado que acesso o dashboard como administrador
+      - Dado que acesso o dashboard como administrador autenticado
       - Quando visualizo o card de "Usuários Ativos"
-      - Então o número exibido deve corresponder exatamente ao total da lista
+      - Então o número exibido deve corresponder exatamente ao total da lista (ex: 42 = 42)
       - E a contagem deve considerar apenas usuários com status "ativo"
-      - E o valor deve ser atualizado quando a lista de usuários mudar
-      - E ao clicar no número, devo poder ver a lista detalhada
-      - E os dados devem estar sincronizados entre dashboard e lista
+      - E o valor deve atualizar automaticamente a cada 30 segundos
+      - E ao clicar no número, devo ser direcionado para a lista filtrada
+      - E os dados devem estar 100% sincronizados entre dashboard e lista
+      - E devo ver timestamp de "última atualização" no card
 
       ## C) Contexto Técnico
       - Problema atual: dashboard exibe 50, mas lista mostra apenas 42 usuários
@@ -236,17 +260,18 @@ examples:
       Logs do gateway mostram: HTTP 500 ao tentar POST /api/webhooks/payment
     output: |
       ## A) User Story
-      Como o sistema de e-commerce, eu quero processar corretamente as notificações de pagamento aprovado, para que os clientes recebam confirmação imediata de suas compras e tenham uma experiência de compra tranquila.
+      Como um cliente que acabou de realizar uma compra, eu quero receber a confirmação do meu pagamento imediatamente após a aprovação, para que eu tenha tranquilidade de que meu pedido está sendo processado e possa aguardar a entrega com confiança.
 
       ## B) Critérios de Aceitação
-      - Dado que um cliente finalizou o pagamento com sucesso no gateway
+      - Dado que finalizei o pagamento com sucesso no gateway
       - Quando o gateway envia a notificação de aprovação via POST
-      - Então o sistema deve processar a requisição e retornar HTTP 200
-      - E o status do pedido deve ser atualizado de "pendente" para "aprovado"
-      - E o cliente deve receber email de confirmação automaticamente
-      - E o evento deve ser registrado nos logs para auditoria
-      - E em caso de falha temporária, deve haver mecanismo de retry
-      - E o pedido não deve ficar indefinidamente em status "pendente"
+      - Então o sistema deve processar a requisição em menos de 5 segundos
+      - E deve retornar HTTP 200 OK para o gateway
+      - E o status do pedido deve mudar de "pendente" para "aprovado"
+      - E devo receber email de confirmação em até 1 minuto
+      - E o evento deve ser registrado nos logs com timestamp
+      - E em caso de falha, deve haver retry automático (3 tentativas)
+      - E após falhas, deve alertar equipe de suporte
 
       ## C) Contexto Técnico
       - Problema atual: endpoint retornando HTTP 500 ao receber webhook
@@ -265,23 +290,24 @@ examples:
       Severidade: ALTA - vazamento de dados pessoais
     output: |
       ## A) User Story
-      Como a plataforma, eu quero garantir que dados pessoais dos usuários sejam protegidos por controle de acesso adequado, para que informações sensíveis não sejam expostas a pessoas não autorizadas e os usuários possam confiar na segurança de seus dados.
+      Como um usuário da plataforma, eu quero que meus dados pessoais estejam protegidos por controle de acesso rigoroso, para que eu me sinta seguro ao usar o sistema e tenha confiança de que minhas informações não serão acessadas por pessoas não autorizadas.
 
       ## B) Critérios de Aceitação
-      - Dado que sou um usuário comum autenticado
+      - Dado que sou um usuário comum autenticado (role="user")
       - Quando tento acessar GET /api/users/:id de outro usuário
-      - Então devo receber uma resposta de acesso negado (HTTP 403)
-      - E nenhum dado sensível deve ser retornado na resposta
-      - E a tentativa deve ser registrada para auditoria de segurança
+      - Então devo receber HTTP 403 Forbidden
+      - E a resposta deve conter apenas {"error": "Acesso não autorizado"}
+      - E nenhum dado sensível (email, telefone, endereço) deve vazar
+      - E a tentativa deve ser logada com user_id, ip e timestamp
 
-      - Dado que sou um administrador autenticado
+      - Dado que sou um administrador autenticado (role="admin")
       - Quando acesso GET /api/users/:id de qualquer usuário
-      - Então devo receber os dados completos com sucesso (HTTP 200)
+      - Então devo receber HTTP 200 com os dados completos
       - E o acesso deve ser registrado em log de auditoria
 
       - Dado que sou um usuário autenticado
       - Quando acesso GET /api/users/:id com meu próprio ID
-      - Então devo receber minhas informações completas
+      - Então devo receber HTTP 200 com minhas informações
 
       ## C) Contexto Técnico
       - Problema atual: ausência de validação de permissões no endpoint /api/users/:id
@@ -291,10 +317,10 @@ examples:
       - Comportamento esperado: validar autorização antes de retornar dados
 
       ## D) Critérios Técnicos
-      - Implementar validação de autorização em todas as rotas de dados sensíveis
+      - Implementar middleware de autorização em /api/users/:id
       - Retornar HTTP 403 Forbidden para acesso não autorizado
-      - Registrar tentativas de acesso indevido em log de segurança
-      - Garantir que dados sensíveis nunca sejam expostos em mensagens de erro
+      - Registrar tentativas de acesso indevido com IP e user_id
+      - Garantir que dados sensíveis nunca vazem em mensagens de erro
 
   - input: |
       Relatório de vendas demora mais de 2 minutos para gerar quando filtro ultrapassa 1000 registros.
@@ -305,17 +331,18 @@ examples:
       - Usuários reclamando de lentidão no horário comercial
     output: |
       ## A) User Story
-      Como um gerente de vendas analisando a performance da equipe, eu quero gerar relatórios rapidamente mesmo com grandes volumes de dados, para que eu possa tomar decisões ágeis sem perder tempo aguardando carregamentos.
+      Como um gerente de vendas analisando a performance da equipe, eu quero gerar relatórios rapidamente mesmo com grandes volumes de dados, para que meu tempo seja valorizado e eu possa tomar decisões estratégicas de forma ágil, sem frustrações com lentidão.
 
       ## B) Critérios de Aceitação
       - Dado que solicito um relatório com mais de 1000 registros
       - Quando aplico os filtros desejados e clico em "Gerar Relatório"
-      - Então o relatório deve ser gerado em tempo aceitável (menos de 30 segundos)
-      - E devo ver um indicador de progresso durante a geração
-      - E não deve ocorrer timeout no navegador
-      - E o desempenho deve ser consistente mesmo em horário de pico
-      - E para volumes muito grandes, deve haver opção de exportação assíncrona
-      - E devo receber feedback claro se a operação demorar mais que o esperado
+      - Então o relatório deve ser gerado em menos de 30 segundos
+      - E devo ver uma barra de progresso com porcentagem durante a geração
+      - E não deve ocorrer timeout do navegador (máximo 60s de requisição)
+      - E o desempenho deve ser consistente mesmo às 10h (horário de pico)
+      - E para >5000 registros, devo ver opção "Exportar em background"
+      - E se demorar mais de 10s, devo ver mensagem "Processando dados..."
+      - E devo poder cancelar a operação a qualquer momento
 
       ## C) Contexto Técnico
       - Problema atual: relatório demora mais de 2 minutos (>120s) para 1000+ registros

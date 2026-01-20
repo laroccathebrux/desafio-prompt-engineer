@@ -210,9 +210,9 @@ def evaluate_prompt(
         # Usar amostra se especificado, senão usar todos
         if sample_size and sample_size < total_in_dataset:
             import random
-            random.seed(42)  # Seed fixo para reprodutibilidade
+            # Sem seed fixo = amostragem verdadeiramente aleatória a cada execução
             examples = random.sample(all_examples, sample_size)
-            print(f"   Dataset: {total_in_dataset} exemplos (usando amostra de {sample_size})")
+            print(f"   Dataset: {total_in_dataset} exemplos (amostra aleatória de {sample_size})")
         else:
             examples = all_examples
             print(f"   Dataset: {total_in_dataset} exemplos (avaliando todos)")
