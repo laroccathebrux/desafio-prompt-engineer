@@ -12,6 +12,66 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
+def load_env() -> bool:
+    """
+    Carrega variáveis de ambiente do arquivo .env.
+
+    Returns:
+        True se arquivo .env foi carregado, False caso contrário
+    """
+    env_path = Path('.env')
+    if env_path.exists():
+        load_dotenv(dotenv_path=env_path)
+        return True
+    return False
+
+
+def validate_env_vars(required_vars: list) -> bool:
+    """
+    Valida se variáveis de ambiente obrigatórias estão configuradas.
+
+    Args:
+        required_vars: Lista de variáveis obrigatórias
+
+    Returns:
+        True se todas configuradas, False caso contrário
+    """
+    missing_vars = []
+
+    for var in required_vars:
+        if not os.getenv(var):
+            missing_vars.append(var)
+
+    if missing_vars:
+        print_error("Variáveis de ambiente faltando:")
+        for var in missing_vars:
+            print(f"   - {var}")
+        print("\nConfigure-as no arquivo .env antes de continuar.")
+        return False
+
+    return True
+
+
+def print_error(message: str) -> None:
+    """
+    Imprime mensagem de erro formatada.
+
+    Args:
+        message: Mensagem de erro
+    """
+    print(f"❌ {message}")
+
+
+def print_success(message: str) -> None:
+    """
+    Imprime mensagem de sucesso formatada.
+
+    Args:
+        message: Mensagem de sucesso
+    """
+    print(f"✓ {message}")
+
+
 def load_yaml(file_path: str) -> Optional[Dict[str, Any]]:
     """
     Carrega arquivo YAML.
