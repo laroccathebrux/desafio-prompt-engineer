@@ -60,3 +60,5 @@ logs/
 # Specify template files (optional, remove if needed)
 .specify/
 .claude/
+Intro.md
+mba-ia-pull-evaluation-prompt

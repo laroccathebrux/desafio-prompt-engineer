@@ -27,6 +27,23 @@ python src/push_prompts.py
 python src/evaluate.py
 ```
 
+### Iteration Workflow (3-5 iterations expected)
+```bash
+# 1. Edit the prompt
+# Edit prompts/bug_to_user_story_v2.yml
+
+# 2. Commit changes (IMPORTANT: always commit before evaluating)
+git add prompts/ && git commit -m "Iteração N: melhorias no prompt"
+
+# 3. Push to LangSmith
+python src/push_prompts.py
+
+# 4. Run evaluation (results are saved automatically)
+python src/evaluate.py
+
+# 5. Repeat until ALL metrics >= 0.9
+```
+
 ### Testing
 ```bash
 pytest tests/test_prompts.py
@@ -45,6 +62,9 @@ pytest tests/test_prompts.py
 ### Prompts Directory
 - `prompts/bug_to_user_story_v1.yml` - Original low-quality prompt (from pull)
 - `prompts/bug_to_user_story_v2.yml` - Optimized prompt (your work)
+
+### Evaluations Directory
+- `evaluations/history.json` - Automatically saved evaluation history (tracks all iterations with scores and comparisons)
 
 ## Evaluation Criteria
 
@@ -75,3 +95,10 @@ Required in `.env`:
 - `LANGCHAIN_API_KEY` - LangSmith API key
 - `LANGCHAIN_TRACING_V2=true`
 - `OPENAI_API_KEY` or `GOOGLE_API_KEY`
+
+## Active Technologies
+- Python 3.9+ + LangChain, LangSmith, langchain-openai, langchain-google-genai, python-dotenv, PyYAML (001-prompt-optimization)
+- Local YAML files in `prompts/` directory (001-prompt-optimization)
+
+## Recent Changes
+- 001-prompt-optimization: Added Python 3.9+ + LangChain, LangSmith, langchain-openai, langchain-google-genai, python-dotenv, PyYAML
