@@ -100,56 +100,88 @@ Todas as métricas devem atingir >= 0.9:
 - **User Story Format Score**: Avalia o formato da User Story
 - **Completeness Score**: Avalia a completude
 
-## Técnicas Aplicadas (Fase 2)
+## Técnicas Aplicadas
 
-Três técnicas avançadas de Prompt Engineering foram aplicadas para otimizar a conversão de bug reports em User Stories:
+Seis técnicas avançadas de Prompt Engineering foram aplicadas para otimizar a conversão de bug reports em User Stories:
 
-### Técnicas escolhidas:
+### Técnicas Principais:
 
-1. **Role Prompting**: Atribuição de persona específica ao LLM para contextualizar as respostas.
-   - *Implementação*: "You are an experienced Product Manager with over 10 years of expertise in Agile methodologies, user experience design, and software development practices."
-   - *Justificativa*: Um Product Manager é a persona ideal para transformar bugs técnicos em User Stories orientadas ao usuário, pois entende tanto o lado técnico quanto as necessidades de negócio.
+1. **Role Prompting**: Atribuição de persona específica ao LLM.
+   - *Implementação*: "Você é um Product Manager Sênior empático que transforma bugs em User Stories de alta qualidade."
+   - *Justificativa*: Um PM experiente entende tanto o lado técnico quanto as necessidades do usuário, sendo ideal para essa transformação.
 
-2. **Few-Shot Learning**: Fornecimento de exemplos input/output para guiar o comportamento do modelo.
-   - *Implementação*: Três exemplos completos incluídos no prompt (bug simples, médio e complexo)
-   - *Justificativa*: Exemplos concretos demonstram o formato exato esperado, incluindo estrutura de User Story, critérios de aceitação em formato Given/When/Then, e notas técnicas.
+2. **Few-Shot Learning**: Fornecimento de exemplos input/output detalhados.
+   - *Implementação*: Dois exemplos completos (bug de login mobile e bug de pagamento Amex) com User Stories empáticas e critérios Given-When-Then.
+   - *Justificativa*: Exemplos concretos demonstram o tom, formato e nível de detalhe esperados.
 
 3. **Chain of Thought**: Instruções passo a passo para raciocínio estruturado.
-   - *Implementação*: Cinco passos sequenciais: (1) Analisar o bug report, (2) Identificar o tipo de usuário, (3) Extrair o comportamento desejado, (4) Escrever critérios de aceitação, (5) Adicionar contexto e prioridade.
-   - *Justificativa*: O raciocínio estruturado garante que nenhum aspecto importante do bug report seja ignorado e produz respostas mais completas e consistentes.
+   - *Implementação*: Seis passos: (1) Identificar usuário, (2) Sentir a frustração, (3) Transformar em desejo positivo, (4) Articular valor, (5) Extrair detalhes técnicos, (6) Definir verificação.
+   - *Justificativa*: Garante análise completa do bug antes da escrita.
 
-### Melhorias adicionais:
+4. **Negative Examples (Contrastive Learning)**: Mostrar o que evitar.
+   - *Implementação*: Exemplos de tom frio/técnico vs tom empático/orientado a valor.
+   - *Justificativa*: Ajuda o modelo a entender a diferença entre uma User Story de baixa e alta qualidade.
 
-- **Tratamento de Edge Cases**: Instruções específicas para inputs vazios, malformados ou muito técnicos
-- **Formato de Saída Padronizado**: Template Markdown com seções obrigatórias (título, User Story, Acceptance Criteria, Priority, Technical Notes)
-- **Padrões de Qualidade**: Guidelines explícitos para linguagem profissional, testabilidade e foco no valor do usuário
+5. **Rubric-based Prompting**: Incluir a rubrica de avaliação no prompt.
+   - *Implementação*: Seção "COMO VOCÊ SERÁ AVALIADO" listando os 4 critérios e seus subcritérios (0-10).
+   - *Justificativa*: O modelo sabe exatamente como será julgado e otimiza para esses critérios.
+
+6. **Emotional Priming**: Frases que ativam empatia antes da escrita.
+   - *Implementação*: "Imagine a frustração do usuário", "Coloque-se no lugar dele", "Você é a voz dele".
+   - *Justificativa*: Melhora significativamente o Tone Score ao ativar linguagem mais empática.
+
+### Melhorias Estruturais:
+
+- **Formato de Saída Padronizado**: Template Markdown com 4 seções obrigatórias (User Story, Critérios de Aceitação, Contexto Técnico, Impacto e Prioridade)
+- **Critérios de Aceitação**: Formato Dado-Quando-Então com 6-8 critérios testáveis
+- **Preservação de Dados**: Instruções explícitas para manter IDs, valores, erros do bug original
+- **Linguagem Positiva**: Foco no que o usuário QUER fazer, não no que está quebrado
 
 ## Resultados Finais
 
-> **Nota**: Os resultados abaixo serão atualizados após a execução da avaliação com credenciais configuradas.
+### Status: ✅ APROVADO
+
+Todas as 4 métricas atingiram o critério de aprovação (>= 0.9).
 
 ### Link do LangSmith Dashboard
 
 O prompt otimizado está disponível publicamente no LangSmith Hub:
-- URL: `https://smith.langchain.com/hub/{username}/bug_to_user_story_v2`
+- URL: `https://smith.langchain.com/prompts/bug_to_user_story_v2`
+- Projeto: `https://smith.langchain.com/projects/desafio-prompt-engineer`
 
-### Comparativo v1 vs v2
+### Scores Finais (Iteração #13)
 
-| Métrica | v1 (inicial) | v2 (otimizado) | Delta |
-|---------|--------------|----------------|-------|
-| Tone Score | ~0.60 | >= 0.90 | +0.30 |
-| Acceptance Criteria | ~0.40 | >= 0.90 | +0.50 |
-| User Story Format | ~0.40 | >= 0.90 | +0.50 |
-| Completeness | ~0.40 | >= 0.90 | +0.50 |
-| **Média** | ~0.45 | >= 0.90 | +0.45 |
+| Métrica | Score | Status |
+|---------|-------|--------|
+| Tone Score | **0.91** | ✅ |
+| Acceptance Criteria Score | **0.91** | ✅ |
+| User Story Format Score | **0.95** | ✅ |
+| Completeness Score | **0.99** | ✅ |
+| **Média** | **0.94** | ✅ |
+
+### Evolução das Métricas
+
+| Métrica | Iteração 1 | Iteração 7 | Iteração 13 (Final) |
+|---------|------------|------------|---------------------|
+| Tone Score | 0.835 | 0.848 | **0.91** |
+| Acceptance Criteria | 0.830 | 0.895 | **0.91** |
+| User Story Format | 0.912 | 0.912 | **0.95** |
+| Completeness | 0.868 | 0.903 | **0.99** |
+| **Média** | 0.861 | 0.889 | **0.94** |
+
+### Configuração Final
+
+- **Modelo de Geração**: gpt-5-mini
+- **Modelo de Avaliação**: gpt-5
+- **Total de Iterações**: 13
 
 ### Melhorias Alcançadas
 
-1. **Estrutura**: Adição de headers Markdown, formatação consistente
-2. **Formato User Story**: Padrão As a/I want/So that sempre presente
-3. **Critérios de Aceitação**: Formato Given/When/Then com múltiplos cenários
-4. **Contexto**: Prioridade e notas técnicas incluídas
-5. **Exemplos**: Few-shot learning com 3 exemplos de complexidade variada
+1. **Tom Empático**: Uso de emotional priming e linguagem positiva aumentou Tone Score de 0.83 para 0.91
+2. **Critérios Testáveis**: Formato Dado-Quando-Então com 6-8 critérios específicos
+3. **Completude**: Preservação de todos os detalhes técnicos do bug original
+4. **Estrutura**: Template Markdown com seções claramente separadas
+5. **Valor de Negócio**: "Para que" sempre articula benefício real para o usuário
 
 ## Como Executar
 
