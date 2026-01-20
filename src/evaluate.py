@@ -196,15 +196,26 @@ def evaluate_prompt_on_example(
 def evaluate_prompt(
     prompt_name: str,
     dataset_name: str,
-    client: Client
+    client: Client,
+    sample_size: int = None
 ) -> Dict[str, float]:
     print(f"\n🔍 Avaliando: {prompt_name}")
 
     try:
         prompt_template = pull_prompt_from_langsmith(prompt_name)
 
-        examples = list(client.list_examples(dataset_name=dataset_name))
-        print(f"   Dataset: {len(examples)} exemplos")
+        all_examples = list(client.list_examples(dataset_name=dataset_name))
+        total_in_dataset = len(all_examples)
+
+        # Usar amostra se especificado, senão usar todos
+        if sample_size and sample_size < total_in_dataset:
+            import random
+            random.seed(42)  # Seed fixo para reprodutibilidade
+            examples = random.sample(all_examples, sample_size)
+            print(f"   Dataset: {total_in_dataset} exemplos (usando amostra de {sample_size})")
+        else:
+            examples = all_examples
+            print(f"   Dataset: {total_in_dataset} exemplos (avaliando todos)")
 
         llm = get_llm()
 
@@ -322,9 +333,14 @@ def main():
     llm_model = os.getenv("LLM_MODEL", "gpt-4o-mini")
     eval_model = os.getenv("EVAL_MODEL", "gpt-4o")
 
+    # Sample size para avaliação (None = usar todos, número = usar amostra)
+    sample_size_env = os.getenv("EVAL_SAMPLE_SIZE", "5")
+    sample_size = int(sample_size_env) if sample_size_env.lower() != "all" else None
+
     print(f"Provider: {provider}")
     print(f"Modelo Principal: {llm_model}")
-    print(f"Modelo de Avaliação: {eval_model}\n")
+    print(f"Modelo de Avaliação: {eval_model}")
+    print(f"Sample Size: {sample_size if sample_size else 'ALL (todos os exemplos)'}\n")
 
     required_vars = ["LANGCHAIN_API_KEY", "LLM_PROVIDER"]
     if provider == "openai":
@@ -367,7 +383,7 @@ def main():
         evaluated_count += 1
 
         try:
-            scores = evaluate_prompt(prompt_name, dataset_name, client)
+            scores = evaluate_prompt(prompt_name, dataset_name, client, sample_size=sample_size)
 
             # Passar avaliação anterior para comparação
             passed = display_results(prompt_name, scores, previous_evaluation)

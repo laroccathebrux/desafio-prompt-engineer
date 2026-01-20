@@ -1,0 +1,62 @@
+[
+  {
+    "prompt": "bug_to_user_story_v2",
+    "scores": {
+      "tone_score": 0.845,
+      "acceptance_criteria_score": 0.84,
+      "user_story_format_score": 0.84,
+      "completeness_score": 0.82
+    },
+    "passed": false,
+    "timestamp": "2026-01-20T15:24:12.400708",
+    "iteration": 1
+  },
+  {
+    "prompt": "bug_to_user_story_v2",
+    "scores": {
+      "tone_score": 0.85,
+      "acceptance_criteria_score": 0.87,
+      "user_story_format_score": 0.86,
+      "completeness_score": 0.84
+    },
+    "passed": false,
+    "timestamp": "2026-01-20T15:40:01.943533",
+    "iteration": 2
+  },
+  {
+    "prompt": "bug_to_user_story_v2",
+    "scores": {
+      "tone_score": 0.86,
+      "acceptance_criteria_score": 0.855,
+      "user_story_format_score": 0.87,
+      "completeness_score": 0.89
+    },
+    "passed": false,
+    "timestamp": "2026-01-20T15:52:51.860279",
+    "iteration": 3
+  },
+  {
+    "prompt": "bug_to_user_story_v2",
+    "scores": {
+      "tone_score": 0.875,
+      "acceptance_criteria_score": 0.865,
+      "user_story_format_score": 0.87,
+      "completeness_score": 0.86
+    },
+    "passed": false,
+    "timestamp": "2026-01-20T16:04:11.123996",
+    "iteration": 4
+  },
+  {
+    "prompt": "bug_to_user_story_v2",
+    "scores": {
+      "tone_score": 0.8667,
+      "acceptance_criteria_score": 0.8567,
+      "user_story_format_score": 0.8867,
+      "completeness_score": 0.8933
+    },
+    "passed": false,
+    "timestamp": "2026-01-20T16:17:52.476390",
+    "iteration": 5
+  }
+]
