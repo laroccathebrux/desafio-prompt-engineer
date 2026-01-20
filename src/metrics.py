@@ -363,34 +363,35 @@ USER STORY ESPERADA (Referência):
 
 INSTRUÇÕES:
 
-Avalie o TOM da user story gerada com base nos critérios:
+Avalie o TOM da user story gerada. Para CADA critério, atribua uma nota de 0 a 10 (números inteiros).
 
-1. PROFISSIONALISMO (0.0 a 1.0):
+1. PROFISSIONALISMO (0-10):
    - Usa linguagem profissional e apropriada para documentação?
    - Evita jargões excessivos ou linguagem muito informal?
    - Mantém padrão de qualidade de documentação ágil?
 
-2. EMPATIA COM USUÁRIO (0.0 a 1.0):
+2. EMPATIA COM USUÁRIO (0-10):
    - Demonstra compreensão do impacto do bug no usuário?
    - Foca na necessidade/frustração do usuário?
    - Usa linguagem centrada no usuário ("Como um... eu quero...")?
 
-3. FOCO EM VALOR (0.0 a 1.0):
+3. FOCO EM VALOR (0-10):
    - Articula claramente o valor de negócio da solução?
    - Vai além de "consertar o bug" e explica o benefício?
    - Usa a estrutura "para que eu possa..." com valor real?
 
-4. LINGUAGEM POSITIVA (0.0 a 1.0):
+4. LINGUAGEM POSITIVA (0-10):
    - Foca no que o usuário QUER fazer (não só no que está quebrado)?
    - Tom construtivo e orientado a solução?
    - Evita linguagem negativa ou culpabilizante?
 
-Calcule a MÉDIA dos 4 critérios para obter o score final.
-
 IMPORTANTE: Retorne APENAS um objeto JSON válido no formato:
 {{
-  "score": <valor entre 0.0 e 1.0>,
-  "reasoning": "<explicação detalhada em até 150 palavras>"
+  "profissionalismo": <0-10>,
+  "empatia": <0-10>,
+  "foco_valor": <0-10>,
+  "linguagem_positiva": <0-10>,
+  "reasoning": "<explicação detalhada em até 100 palavras>"
 }}
 
 NÃO adicione nenhum texto antes ou depois do JSON.
@@ -401,10 +402,23 @@ NÃO adicione nenhum texto antes ou depois do JSON.
         response = llm.invoke([HumanMessage(content=evaluator_prompt)])
         result = extract_json_from_response(response.content)
 
-        score = float(result.get("score", 0.0))
+        # Extrair scores individuais e calcular média
+        profissionalismo = float(result.get("profissionalismo", 0)) / 10.0
+        empatia = float(result.get("empatia", 0)) / 10.0
+        foco_valor = float(result.get("foco_valor", 0)) / 10.0
+        linguagem_positiva = float(result.get("linguagem_positiva", 0)) / 10.0
+
+        # Calcular média no código (não no LLM)
+        score = (profissionalismo + empatia + foco_valor + linguagem_positiva) / 4.0
 
         return {
             "score": round(score, 4),
+            "details": {
+                "profissionalismo": profissionalismo,
+                "empatia": empatia,
+                "foco_valor": foco_valor,
+                "linguagem_positiva": linguagem_positiva
+            },
             "reasoning": result.get("reasoning", "")
         }
 
@@ -449,36 +463,37 @@ USER STORY ESPERADA (Referência):
 
 INSTRUÇÕES:
 
-Avalie os CRITÉRIOS DE ACEITAÇÃO da user story gerada:
+Avalie os CRITÉRIOS DE ACEITAÇÃO da user story gerada. Para CADA critério, atribua uma nota de 0 a 10 (números inteiros).
 
-1. FORMATO ESTRUTURADO (0.0 a 1.0):
+1. FORMATO ESTRUTURADO (0-10):
    - Usa formato Given-When-Then ou estrutura similar?
    - Cada critério é claramente separado e identificável?
    - Formatação facilita leitura e entendimento?
 
-2. ESPECIFICIDADE E TESTABILIDADE (0.0 a 1.0):
+2. ESPECIFICIDADE E TESTABILIDADE (0-10):
    - Critérios são específicos e não vagos?
    - É possível criar testes automatizados a partir deles?
    - Evita termos ambíguos como "deve funcionar bem"?
    - Critérios mensuráveis e verificáveis?
 
-3. QUANTIDADE ADEQUADA (0.0 a 1.0):
+3. QUANTIDADE ADEQUADA (0-10):
    - Tem quantidade apropriada de critérios (nem muito, nem pouco)?
-   - Ideal: 3-7 critérios para bugs simples/médios
+   - Ideal: 5-8 critérios para bugs simples/médios
    - Bugs complexos podem ter mais critérios organizados
 
-4. COBERTURA COMPLETA (0.0 a 1.0):
+4. COBERTURA COMPLETA (0-10):
    - Cobre todos os aspectos do bug?
    - Inclui cenários de sucesso e erro?
    - Considera edge cases quando relevante?
    - Aborda validações e requisitos técnicos do bug?
 
-Calcule a MÉDIA dos 4 critérios para obter o score final.
-
 IMPORTANTE: Retorne APENAS um objeto JSON válido no formato:
 {{
-  "score": <valor entre 0.0 e 1.0>,
-  "reasoning": "<explicação detalhada com exemplos específicos, até 150 palavras>"
+  "formato": <0-10>,
+  "testabilidade": <0-10>,
+  "quantidade": <0-10>,
+  "cobertura": <0-10>,
+  "reasoning": "<explicação detalhada em até 100 palavras>"
 }}
 
 NÃO adicione nenhum texto antes ou depois do JSON.
@@ -489,10 +504,23 @@ NÃO adicione nenhum texto antes ou depois do JSON.
         response = llm.invoke([HumanMessage(content=evaluator_prompt)])
         result = extract_json_from_response(response.content)
 
-        score = float(result.get("score", 0.0))
+        # Extrair scores individuais e calcular média
+        formato = float(result.get("formato", 0)) / 10.0
+        testabilidade = float(result.get("testabilidade", 0)) / 10.0
+        quantidade = float(result.get("quantidade", 0)) / 10.0
+        cobertura = float(result.get("cobertura", 0)) / 10.0
+
+        # Calcular média no código (não no LLM)
+        score = (formato + testabilidade + quantidade + cobertura) / 4.0
 
         return {
             "score": round(score, 4),
+            "details": {
+                "formato": formato,
+                "testabilidade": testabilidade,
+                "quantidade": quantidade,
+                "cobertura": cobertura
+            },
             "reasoning": result.get("reasoning", "")
         }
 
@@ -536,39 +564,41 @@ USER STORY ESPERADA (Referência):
 
 INSTRUÇÕES:
 
-Avalie o FORMATO da user story gerada:
+Avalie o FORMATO da user story gerada. Para CADA critério, atribua uma nota de 0 a 10 (números inteiros).
 
-1. TEMPLATE PADRÃO (0.0 a 1.0):
+1. TEMPLATE PADRÃO (0-10):
    - Segue o formato "Como um [usuário], eu quero [ação], para que [benefício]"?
    - Todas as três partes estão presentes e corretas?
    - Ordem e estrutura seguem as melhores práticas?
 
-2. IDENTIFICAÇÃO DE PERSONA (0.0 a 1.0):
+2. IDENTIFICAÇÃO DE PERSONA (0-10):
    - "Como um..." identifica claramente o tipo de usuário?
    - Persona é específica e relevante para o bug?
    - Evita genéricos como "Como um usuário" sem contexto?
 
-3. AÇÃO CLARA (0.0 a 1.0):
+3. AÇÃO CLARA (0-10):
    - "Eu quero..." descreve claramente a ação/funcionalidade desejada?
    - Ação é específica e relacionada ao bug?
    - Evita descrições vagas ou muito técnicas?
 
-4. BENEFÍCIO ARTICULADO (0.0 a 1.0):
+4. BENEFÍCIO ARTICULADO (0-10):
    - "Para que..." explica claramente o valor/benefício?
    - Benefício é real e significativo (não trivial)?
    - Conecta a ação ao valor de negócio?
 
-5. SEPARAÇÃO DE SEÇÕES (0.0 a 1.0):
+5. SEPARAÇÃO DE SEÇÕES (0-10):
    - User story principal está claramente separada dos critérios?
    - Critérios de aceitação têm seção própria?
    - Estrutura facilita leitura e navegação?
 
-Calcule a MÉDIA dos 5 critérios para obter o score final.
-
 IMPORTANTE: Retorne APENAS um objeto JSON válido no formato:
 {{
-  "score": <valor entre 0.0 e 1.0>,
-  "reasoning": "<explicação detalhada com exemplos, até 150 palavras>"
+  "template": <0-10>,
+  "persona": <0-10>,
+  "acao": <0-10>,
+  "beneficio": <0-10>,
+  "separacao": <0-10>,
+  "reasoning": "<explicação detalhada em até 100 palavras>"
 }}
 
 NÃO adicione nenhum texto antes ou depois do JSON.
@@ -579,10 +609,25 @@ NÃO adicione nenhum texto antes ou depois do JSON.
         response = llm.invoke([HumanMessage(content=evaluator_prompt)])
         result = extract_json_from_response(response.content)
 
-        score = float(result.get("score", 0.0))
+        # Extrair scores individuais e calcular média
+        template = float(result.get("template", 0)) / 10.0
+        persona = float(result.get("persona", 0)) / 10.0
+        acao = float(result.get("acao", 0)) / 10.0
+        beneficio = float(result.get("beneficio", 0)) / 10.0
+        separacao = float(result.get("separacao", 0)) / 10.0
+
+        # Calcular média no código (não no LLM)
+        score = (template + persona + acao + beneficio + separacao) / 5.0
 
         return {
             "score": round(score, 4),
+            "details": {
+                "template": template,
+                "persona": persona,
+                "acao": acao,
+                "beneficio": beneficio,
+                "separacao": separacao
+            },
             "reasoning": result.get("reasoning", "")
         }
 
@@ -625,50 +670,49 @@ USER STORY ESPERADA (Referência):
 
 INSTRUÇÕES:
 
-Avalie a COMPLETUDE da user story em relação ao bug:
+Avalie a COMPLETUDE da user story em relação ao bug. Para CADA critério, atribua uma nota de 0 a 10 (números inteiros).
 
-1. COBERTURA DO PROBLEMA (0.0 a 1.0):
+1. COBERTURA DO PROBLEMA (0-10):
    - A user story aborda TODOS os aspectos do bug reportado?
    - Nenhum detalhe importante foi omitido?
    - Se bug menciona múltiplos problemas, todos são cobertos?
 
-2. CONTEXTO TÉCNICO (0.0 a 1.0):
+2. CONTEXTO TÉCNICO (0-10):
    - Quando o bug inclui detalhes técnicos (logs, stack traces, endpoints):
      * User story preserva contexto técnico relevante?
      * Informações técnicas são incluídas de forma apropriada?
-   - Bugs simples não precisam de muito contexto técnico
+   - Bugs simples não precisam de muito contexto técnico (dar nota alta se apropriado)
    - Bugs complexos DEVEM incluir seção de contexto técnico
 
-3. IMPACTO E SEVERIDADE (0.0 a 1.0):
+3. IMPACTO E SEVERIDADE (0-10):
    - Se o bug menciona impacto (usuários afetados, perda financeira):
      * User story reconhece e documenta o impacto?
    - Severidade é refletida na priorização implícita?
-   - Bugs críticos devem ter tratamento mais detalhado
+   - Se bug não menciona impacto, dar nota alta se não inventou informações
 
-4. TASKS TÉCNICAS (0.0 a 1.0):
-   - Para bugs complexos com múltiplos componentes:
-     * User story sugere tasks técnicas ou breakdown?
-   - Para bugs simples/médios:
-     * Tasks não são necessárias (não penalizar ausência)
-   - Avalie se o nível de detalhe é apropriado à complexidade
+4. PRESERVAÇÃO DE DADOS (0-10):
+   - Steps to reproduce foram refletidos nos critérios de aceitação?
+   - IDs, valores, métricas específicas foram preservados?
+   - Logs, códigos HTTP, endpoints foram documentados no contexto técnico?
 
-5. INFORMAÇÕES ADICIONAIS RELEVANTES (0.0 a 1.0):
-   - Se bug menciona: steps to reproduce, ambiente, logs
-     * User story preserva ou referencia essas informações?
+5. INFORMAÇÕES ADICIONAIS (0-10):
+   - Ambiente/plataforma afetada foi mencionado?
    - Contexto de negócio importante é mantido?
-   - Sugestões de solução são apropriadas?
-
-Calcule a MÉDIA dos 5 critérios para obter o score final.
+   - Nível de detalhe é apropriado à complexidade do bug?
 
 IMPORTANTE:
 - Bugs SIMPLES podem ter score alto mesmo sem muitos detalhes técnicos
-- Bugs COMPLEXOS DEVEM ter seções adicionais (contexto técnico, tasks, impacto)
+- Bugs COMPLEXOS DEVEM ter seções adicionais (contexto técnico, impacto)
 - Compare com a referência para calibrar expectativa de completude
 
 Retorne APENAS um objeto JSON válido no formato:
 {{
-  "score": <valor entre 0.0 e 1.0>,
-  "reasoning": "<explicação detalhada sobre o que foi bem coberto e o que faltou, até 200 palavras>"
+  "cobertura": <0-10>,
+  "contexto_tecnico": <0-10>,
+  "impacto": <0-10>,
+  "preservacao_dados": <0-10>,
+  "informacoes_adicionais": <0-10>,
+  "reasoning": "<explicação detalhada em até 100 palavras>"
 }}
 
 NÃO adicione nenhum texto antes ou depois do JSON.
@@ -679,10 +723,25 @@ NÃO adicione nenhum texto antes ou depois do JSON.
         response = llm.invoke([HumanMessage(content=evaluator_prompt)])
         result = extract_json_from_response(response.content)
 
-        score = float(result.get("score", 0.0))
+        # Extrair scores individuais e calcular média
+        cobertura = float(result.get("cobertura", 0)) / 10.0
+        contexto_tecnico = float(result.get("contexto_tecnico", 0)) / 10.0
+        impacto = float(result.get("impacto", 0)) / 10.0
+        preservacao_dados = float(result.get("preservacao_dados", 0)) / 10.0
+        informacoes_adicionais = float(result.get("informacoes_adicionais", 0)) / 10.0
+
+        # Calcular média no código (não no LLM)
+        score = (cobertura + contexto_tecnico + impacto + preservacao_dados + informacoes_adicionais) / 5.0
 
         return {
             "score": round(score, 4),
+            "details": {
+                "cobertura": cobertura,
+                "contexto_tecnico": contexto_tecnico,
+                "impacto": impacto,
+                "preservacao_dados": preservacao_dados,
+                "informacoes_adicionais": informacoes_adicionais
+            },
             "reasoning": result.get("reasoning", "")
         }
 
