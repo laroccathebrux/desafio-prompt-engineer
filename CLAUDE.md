@@ -27,6 +27,23 @@ python src/push_prompts.py
 python src/evaluate.py
 ```
 
+### Iteration Workflow (3-5 iterations expected)
+```bash
+# 1. Edit the prompt
+# Edit prompts/bug_to_user_story_v2.yml
+
+# 2. Commit changes (IMPORTANT: always commit before evaluating)
+git add prompts/ && git commit -m "Iteração N: melhorias no prompt"
+
+# 3. Push to LangSmith
+python src/push_prompts.py
+
+# 4. Run evaluation (results are saved automatically)
+python src/evaluate.py
+
+# 5. Repeat until ALL metrics >= 0.9
+```
+
 ### Testing
 ```bash
 pytest tests/test_prompts.py
@@ -45,6 +62,9 @@ pytest tests/test_prompts.py
 ### Prompts Directory
 - `prompts/bug_to_user_story_v1.yml` - Original low-quality prompt (from pull)
 - `prompts/bug_to_user_story_v2.yml` - Optimized prompt (your work)
+
+### Evaluations Directory
+- `evaluations/history.json` - Automatically saved evaluation history (tracks all iterations with scores and comparisons)
 
 ## Evaluation Criteria
 

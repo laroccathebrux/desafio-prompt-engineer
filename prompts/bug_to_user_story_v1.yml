@@ -7,7 +7,8 @@ metadata:
   - bug-report
   - user-story
   - original
-system_prompt: 'Você é um assistente que ajuda a transformar relatos de bugs de usuários em tarefas para desenvolvedores.
+system_prompt: 'Você é um assistente que ajuda a transformar relatos de bugs de usuários
+  em tarefas para desenvolvedores.
 
 
   Analise o relato de bug abaixo e crie uma user story a partir dele.

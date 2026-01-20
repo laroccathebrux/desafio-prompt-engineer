@@ -301,3 +301,168 @@ def get_eval_llm(temperature: float = 0.0):
     """
     eval_model = os.getenv('EVAL_MODEL', 'gpt-4o')
     return get_llm(model=eval_model, temperature=temperature)
+
+
+# ============================================================
+# Funções de Histórico de Avaliações
+# ============================================================
+
+EVALUATION_HISTORY_PATH = Path(__file__).parent.parent / "evaluations" / "history.json"
+
+
+def load_evaluation_history() -> list:
+    """
+    Carrega histórico de avaliações do arquivo JSON.
+
+    Returns:
+        Lista de avaliações anteriores (mais recente por último)
+    """
+    if not EVALUATION_HISTORY_PATH.exists():
+        return []
+
+    try:
+        with open(EVALUATION_HISTORY_PATH, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except (json.JSONDecodeError, Exception) as e:
+        print(f"⚠️  Aviso: Erro ao carregar histórico: {e}")
+        return []
+
+
+def save_evaluation_result(result: Dict[str, Any]) -> bool:
+    """
+    Salva resultado de avaliação no histórico.
+
+    Args:
+        result: Dicionário com resultado da avaliação contendo:
+            - timestamp: Data/hora da avaliação
+            - prompt_name: Nome do prompt avaliado
+            - scores: Dicionário com as 4 métricas
+            - passed: Se passou em todas as métricas
+            - iteration: Número da iteração
+
+    Returns:
+        True se salvou com sucesso, False caso contrário
+    """
+    from datetime import datetime
+
+    history = load_evaluation_history()
+
+    # Adicionar timestamp se não existir
+    if 'timestamp' not in result:
+        result['timestamp'] = datetime.now().isoformat()
+
+    # Calcular número da iteração
+    result['iteration'] = len(history) + 1
+
+    history.append(result)
+
+    try:
+        EVALUATION_HISTORY_PATH.parent.mkdir(parents=True, exist_ok=True)
+
+        with open(EVALUATION_HISTORY_PATH, 'w', encoding='utf-8') as f:
+            json.dump(history, f, indent=2, ensure_ascii=False)
+
+        return True
+    except Exception as e:
+        print(f"❌ Erro ao salvar histórico: {e}")
+        return False
+
+
+def get_last_evaluation() -> Optional[Dict[str, Any]]:
+    """
+    Retorna a última avaliação do histórico.
+
+    Returns:
+        Dicionário com última avaliação ou None se não houver histórico
+    """
+    history = load_evaluation_history()
+    return history[-1] if history else None
+
+
+def format_comparison(current: float, previous: float) -> str:
+    """
+    Formata comparação entre score atual e anterior.
+
+    Args:
+        current: Score atual
+        previous: Score anterior
+
+    Returns:
+        String formatada com indicador de melhoria/piora
+    """
+    diff = current - previous
+
+    if diff > 0.001:
+        return f"↑ +{diff:.4f}"
+    elif diff < -0.001:
+        return f"↓ {diff:.4f}"
+    else:
+        return "= 0.0000"
+
+
+def print_evaluation_comparison(current_scores: Dict[str, float], previous: Optional[Dict[str, Any]]) -> None:
+    """
+    Imprime comparação entre avaliação atual e anterior.
+
+    Args:
+        current_scores: Scores da avaliação atual
+        previous: Resultado da avaliação anterior (ou None)
+    """
+    if not previous:
+        print("\n📊 Primeira avaliação - sem histórico para comparar")
+        return
+
+    print("\n" + "=" * 60)
+    print("📊 COMPARAÇÃO COM AVALIAÇÃO ANTERIOR")
+    print("=" * 60)
+
+    prev_scores = previous.get('scores', {})
+    prev_iteration = previous.get('iteration', '?')
+    prev_timestamp = previous.get('timestamp', 'N/A')
+
+    print(f"\nIteração anterior: #{prev_iteration} ({prev_timestamp[:19]})")
+    print(f"Iteração atual:    #{len(load_evaluation_history()) + 1}")
+    print()
+
+    print(f"{'Métrica':<30} {'Anterior':>10} {'Atual':>10} {'Variação':>15}")
+    print("-" * 65)
+
+    metrics = [
+        ('tone_score', 'Tone Score'),
+        ('acceptance_criteria_score', 'Acceptance Criteria'),
+        ('user_story_format_score', 'User Story Format'),
+        ('completeness_score', 'Completeness')
+    ]
+
+    improved_count = 0
+    worsened_count = 0
+
+    for key, label in metrics:
+        prev_val = prev_scores.get(key, 0.0)
+        curr_val = current_scores.get(key, 0.0)
+        comparison = format_comparison(curr_val, prev_val)
+
+        if curr_val > prev_val + 0.001:
+            improved_count += 1
+        elif curr_val < prev_val - 0.001:
+            worsened_count += 1
+
+        print(f"{label:<30} {prev_val:>10.4f} {curr_val:>10.4f} {comparison:>15}")
+
+    print("-" * 65)
+
+    # Média
+    prev_avg = sum(prev_scores.values()) / len(prev_scores) if prev_scores else 0
+    curr_avg = sum(current_scores.values()) / len(current_scores) if current_scores else 0
+    avg_comparison = format_comparison(curr_avg, prev_avg)
+
+    print(f"{'MÉDIA':<30} {prev_avg:>10.4f} {curr_avg:>10.4f} {avg_comparison:>15}")
+    print()
+
+    # Resumo
+    if improved_count > worsened_count:
+        print(f"✅ Progresso: {improved_count} métricas melhoraram, {worsened_count} pioraram")
+    elif worsened_count > improved_count:
+        print(f"⚠️  Regressão: {worsened_count} métricas pioraram, {improved_count} melhoraram")
+    else:
+        print(f"➡️  Estável: {improved_count} melhoraram, {worsened_count} pioraram")

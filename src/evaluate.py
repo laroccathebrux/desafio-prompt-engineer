@@ -31,7 +31,11 @@ from pathlib import Path
 from dotenv import load_dotenv
 from langsmith import Client
 from langchain_core.prompts import ChatPromptTemplate
-from utils import check_env_vars, format_score, print_section_header, get_llm as get_configured_llm
+from utils import (
+    check_env_vars, format_score, print_section_header, get_llm as get_configured_llm,
+    get_last_evaluation, save_evaluation_result, print_evaluation_comparison,
+    load_evaluation_history
+)
 from metrics import (
     evaluate_tone_score,
     evaluate_acceptance_criteria_score,
@@ -252,10 +256,15 @@ def evaluate_prompt(
         }
 
 
-def display_results(prompt_name: str, scores: Dict[str, float]) -> bool:
+def display_results(prompt_name: str, scores: Dict[str, float], previous_evaluation: Dict[str, Any] = None) -> bool:
     print("\n" + "=" * 50)
     print(f"Prompt: {prompt_name}")
     print("=" * 50)
+
+    # Mostrar número da iteração
+    history = load_evaluation_history()
+    current_iteration = len(history) + 1
+    print(f"\n🔄 Iteração: #{current_iteration}")
 
     print("\n📊 Métricas Bug to User Story (Critério de Aprovação):")
     print(f"  - Tone Score: {format_score(scores['tone_score'], threshold=0.9)}")
@@ -287,11 +296,26 @@ def display_results(prompt_name: str, scores: Dict[str, float]) -> bool:
         if average_score < 0.9:
             print(f"   ⚠️  Média atual: {average_score:.4f} | Necessário: >= 0.9")
 
+    # Mostrar comparação com avaliação anterior
+    print_evaluation_comparison(scores, previous_evaluation)
+
     return all_metrics_pass and average_score >= 0.9
 
 
 def main():
     print_section_header("AVALIAÇÃO DE PROMPTS OTIMIZADOS")
+
+    # Carregar avaliação anterior para comparação
+    previous_evaluation = get_last_evaluation()
+    history = load_evaluation_history()
+
+    if previous_evaluation:
+        print(f"📜 Histórico: {len(history)} avaliações anteriores")
+        print(f"   Última iteração: #{previous_evaluation.get('iteration', '?')}")
+    else:
+        print("📜 Histórico: Nenhuma avaliação anterior encontrada")
+
+    print()
 
     provider = os.getenv("LLM_PROVIDER", "openai")
     llm_model = os.getenv("LLM_MODEL", "gpt-4o-mini")
@@ -344,20 +368,27 @@ def main():
         try:
             scores = evaluate_prompt(prompt_name, dataset_name, client)
 
-            passed = display_results(prompt_name, scores)
+            # Passar avaliação anterior para comparação
+            passed = display_results(prompt_name, scores, previous_evaluation)
             all_passed = all_passed and passed
 
-            results_summary.append({
+            result_data = {
                 "prompt": prompt_name,
                 "scores": scores,
                 "passed": passed
-            })
+            }
+
+            results_summary.append(result_data)
+
+            # Salvar resultado no histórico
+            save_evaluation_result(result_data)
+            print(f"\n💾 Resultado salvo no histórico (evaluations/history.json)")
 
         except Exception as e:
             print(f"\n❌ Falha ao avaliar '{prompt_name}': {e}")
             all_passed = False
 
-            results_summary.append({
+            error_result = {
                 "prompt": prompt_name,
                 "scores": {
                     "tone_score": 0.0,
@@ -365,8 +396,15 @@ def main():
                     "user_story_format_score": 0.0,
                     "completeness_score": 0.0
                 },
-                "passed": False
-            })
+                "passed": False,
+                "error": str(e)
+            }
+
+            results_summary.append(error_result)
+
+            # Salvar mesmo resultados com erro
+            save_evaluation_result(error_result)
+            print(f"\n💾 Resultado (com erro) salvo no histórico")
 
     print("\n" + "=" * 50)
     print("RESUMO FINAL")
@@ -375,6 +413,11 @@ def main():
     if evaluated_count == 0:
         print("⚠️  Nenhum prompt foi avaliado")
         return 1
+
+    # Mostrar total de iterações
+    total_iterations = len(load_evaluation_history())
+    print(f"📊 Total de iterações realizadas: {total_iterations}")
+    print(f"   (Esperado: 3-5 iterações para atingir >= 0.9)\n")
 
     print(f"Prompts avaliados: {evaluated_count}")
     print(f"Aprovados: {sum(1 for r in results_summary if r['passed'])}")
@@ -402,9 +445,11 @@ def main():
         print("   - User Story Format Score")
         print("   - Completeness Score")
         print("\nPróximos passos:")
-        print("1. Refatore os prompts com score baixo")
-        print("2. Faça push novamente: python src/push_prompts.py")
-        print("3. Execute: python src/evaluate.py novamente")
+        print("1. Refatore os prompts com score baixo em prompts/bug_to_user_story_v2.yml")
+        print("2. Faça commit das alterações: git add prompts/ && git commit -m 'Iteração N: melhorias no prompt'")
+        print("3. Faça push para o LangSmith: python src/push_prompts.py")
+        print("4. Execute novamente: python src/evaluate.py")
+        print("5. Repita até TODAS as métricas >= 0.9 (esperado: 3-5 iterações)")
         return 1
 
 if __name__ == "__main__":
