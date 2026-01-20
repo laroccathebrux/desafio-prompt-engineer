@@ -175,6 +175,17 @@ O prompt otimizado está disponível publicamente no LangSmith Hub:
 - **Modelo de Avaliação**: gpt-5
 - **Total de Iterações**: 13
 
+### Nota sobre Modelos e Custos
+
+> **Importante**: O modelo `gpt-4o-mini` (sugerido inicialmente) **não conseguiu atingir os requisitos mínimos** de 0.9 em todas as métricas, especialmente no **Tone Score**, que ficou travado em ~0.85 mesmo após múltiplas iterações e técnicas avançadas de prompt engineering.
+>
+> Foi necessário migrar para modelos mais capazes:
+> - **gpt-4o**: Tone Score chegou a 0.898 (ainda abaixo de 0.9)
+> - **gpt-5-mini**: Tone Score atingiu 0.87, outras métricas passaram
+> - **gpt-5**: Tone Score atingiu 0.90, todas as métricas passaram
+>
+> **Impacto no custo**: O budget máximo estimado de **$5** foi ultrapassado, resultando em um custo total de aproximadamente **$7** para completar este desafio com sucesso.
+
 ### Melhorias Alcançadas
 
 1. **Tom Empático**: Uso de emotional priming e linguagem positiva aumentou Tone Score de 0.83 para 0.91
