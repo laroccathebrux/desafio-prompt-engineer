@@ -1,381 +1,774 @@
 """
-Evaluation Metrics for the LangSmith Prompt Optimization Challenge.
+Implementação COMPLETA de métricas customizadas para avaliação de prompts.
+RESOLUÇÃO DO DESAFIO
 
-This module implements 4 custom metrics to evaluate the quality of
-User Stories generated from bug reports:
+Este módulo implementa métricas gerais e específicas para Bug to User Story:
 
-1. Tone Score: Evaluates language appropriateness and professionalism
-2. Acceptance Criteria Score: Evaluates quality of acceptance criteria
-3. User Story Format Score: Evaluates adherence to standard User Story format
-4. Completeness Score: Evaluates coverage of all bug aspects
+MÉTRICAS GERAIS (3):
+1. F1-Score: Balanceamento entre Precision e Recall
+2. Clarity: Clareza e estrutura da resposta
+3. Precision: Informações corretas e relevantes
 
-Each metric returns a score between 0.0 and 1.0, where >= 0.9 is passing.
+MÉTRICAS ESPECÍFICAS PARA BUG TO USER STORY (4):
+4. Tone Score: Tom profissional e empático
+5. Acceptance Criteria Score: Qualidade dos critérios de aceitação
+6. User Story Format Score: Formato correto (Como... Eu quero... Para que...)
+7. Completeness Score: Completude e contexto técnico
+
+Suporta múltiplos providers de LLM:
+- OpenAI (gpt-4o, gpt-4o-mini)
+- Google Gemini (gemini-1.5-flash, gemini-1.5-pro)
+
+Configure o provider no arquivo .env através da variável LLM_PROVIDER.
 """
 
+import os
+import json
 import re
-from typing import Dict, Any, Callable
+from typing import Dict, Any
+from dotenv import load_dotenv
+from langchain_core.messages import SystemMessage, HumanMessage
+from utils import get_eval_llm
+
+load_dotenv()
 
 
-def evaluate_tone(output: str, reference: Dict[str, Any] = None) -> float:
+def get_evaluator_llm():
     """
-    Evaluate the tone and professionalism of the generated User Story.
+    Retorna o LLM configurado para avaliação.
+    Suporta OpenAI e Google Gemini baseado no .env
+    """
+    return get_eval_llm(temperature=0)
 
-    Checks for:
-    - Professional language (no casual/inappropriate terms)
-    - Clear and concise writing
-    - Appropriate formatting
-    - Constructive framing (solutions not just problems)
+
+def extract_json_from_response(response_text: str) -> Dict[str, Any]:
+    """
+    Extrai JSON de uma resposta de LLM que pode conter texto adicional.
+    """
+    try:
+        # Tentar parsear diretamente
+        return json.loads(response_text)
+    except json.JSONDecodeError:
+        # Tentar encontrar JSON no meio do texto
+        start = response_text.find('{')
+        end = response_text.rfind('}') + 1
+
+        if start != -1 and end > start:
+            try:
+                json_str = response_text[start:end]
+                return json.loads(json_str)
+            except json.JSONDecodeError:
+                pass
+
+        # Se não conseguir extrair, retornar valores default
+        print(f"⚠️  Não foi possível extrair JSON da resposta: {response_text[:200]}...")
+        return {"score": 0.0, "reasoning": "Erro ao processar resposta"}
+
+
+def evaluate_f1_score(question: str, answer: str, reference: str) -> Dict[str, Any]:
+    """
+    Calcula F1-Score usando LLM-as-Judge.
+
+    F1-Score = 2 * (Precision * Recall) / (Precision + Recall)
 
     Args:
-        output: The generated User Story text.
-        reference: Optional reference data (bug report) for context.
+        question: Pergunta feita pelo usuário
+        answer: Resposta gerada pelo prompt
+        reference: Resposta esperada (ground truth)
 
     Returns:
-        Score between 0.0 and 1.0.
-
-    Example:
-        >>> score = evaluate_tone("## User Story\\n\\n**As a** user...")
-        >>> 0.0 <= score <= 1.0
-        True
+        Dict com score e reasoning:
+        {
+            "score": 0.95,
+            "precision": 0.9,
+            "recall": 0.99,
+            "reasoning": "Explicação do LLM..."
+        }
     """
-    if not output or not output.strip():
-        return 0.0
+    evaluator_prompt = f"""
+Você é um avaliador especializado em medir a qualidade de respostas geradas por IA.
 
-    score = 0.0
-    checks_passed = 0
-    total_checks = 5
+Sua tarefa é calcular PRECISION e RECALL para determinar o F1-Score.
 
-    # Check 1: Uses professional language (no casual terms)
-    casual_terms = ['stuff', 'thing', 'whatever', 'kinda', 'gonna', 'wanna', 'lol', 'btw']
-    if not any(term in output.lower() for term in casual_terms):
-        checks_passed += 1
+PERGUNTA DO USUÁRIO:
+{question}
 
-    # Check 2: Uses proper sentence structure (starts with capital, ends with punctuation)
-    sentences = re.split(r'[.!?]', output)
-    proper_sentences = sum(1 for s in sentences if s.strip() and s.strip()[0].isupper())
-    if proper_sentences >= len([s for s in sentences if s.strip()]) * 0.8:
-        checks_passed += 1
+RESPOSTA ESPERADA (Ground Truth):
+{reference}
 
-    # Check 3: Contains structured headers (markdown formatting)
-    if re.search(r'^#+\s+', output, re.MULTILINE) or '**' in output:
-        checks_passed += 1
+RESPOSTA GERADA PELO MODELO:
+{answer}
 
-    # Check 4: Focuses on solution/improvement rather than just problem
-    solution_words = ['want', 'need', 'should', 'will', 'can', 'able', 'improve', 'ensure', 'enable']
-    if any(word in output.lower() for word in solution_words):
-        checks_passed += 1
+INSTRUÇÕES:
 
-    # Check 5: Reasonable length (not too short or too long)
-    word_count = len(output.split())
-    if 50 <= word_count <= 500:
-        checks_passed += 1
+1. PRECISION (0.0 a 1.0):
+   - Quantas informações na resposta gerada são CORRETAS e RELEVANTES?
+   - Penalizar informações incorretas, inventadas ou desnecessárias
+   - 1.0 = todas informações são corretas e relevantes
+   - 0.0 = nenhuma informação é correta ou relevante
 
-    score = checks_passed / total_checks
-    return round(score, 2)
+2. RECALL (0.0 a 1.0):
+   - Quantas informações da resposta esperada estão PRESENTES na resposta gerada?
+   - Penalizar informações importantes que foram omitidas
+   - 1.0 = todas informações importantes estão presentes
+   - 0.0 = nenhuma informação importante está presente
 
+3. RACIOCÍNIO:
+   - Explique brevemente sua avaliação
+   - Cite exemplos específicos do que estava correto/incorreto
 
-def evaluate_acceptance_criteria(output: str, reference: Dict[str, Any] = None) -> float:
-    """
-    Evaluate the quality of acceptance criteria in the User Story.
+IMPORTANTE: Retorne APENAS um objeto JSON válido no formato:
+{{
+  "precision": <valor entre 0.0 e 1.0>,
+  "recall": <valor entre 0.0 e 1.0>,
+  "reasoning": "<sua explicação em até 100 palavras>"
+}}
 
-    Checks for:
-    - Presence of acceptance criteria section
-    - Given/When/Then format (or equivalent)
-    - Testable conditions
-    - Coverage of main scenario and edge cases
-
-    Args:
-        output: The generated User Story text.
-        reference: Optional reference data (bug report) for context.
-
-    Returns:
-        Score between 0.0 and 1.0.
-
-    Example:
-        >>> output = "### Acceptance Criteria\\n- Given... When... Then..."
-        >>> score = evaluate_acceptance_criteria(output)
-        >>> score > 0.5
-        True
-    """
-    if not output or not output.strip():
-        return 0.0
-
-    score = 0.0
-    checks_passed = 0
-    total_checks = 5
-
-    output_lower = output.lower()
-
-    # Check 1: Contains acceptance criteria section
-    ac_patterns = ['acceptance criteria', 'acceptance scenario', 'criteria', 'scenarios']
-    if any(pattern in output_lower for pattern in ac_patterns):
-        checks_passed += 1
-
-    # Check 2: Uses Given/When/Then format
-    gwt_patterns = [
-        (r'given\s+.+', r'when\s+.+', r'then\s+.+'),
-        ('given', 'when', 'then'),
-        ('precondition', 'action', 'result')
-    ]
-    for patterns in gwt_patterns:
-        if all(re.search(p, output_lower) for p in patterns if isinstance(p, str)):
-            checks_passed += 1
-            break
-        if isinstance(patterns[0], str) and all(p in output_lower for p in patterns):
-            checks_passed += 1
-            break
-
-    # Check 3: Has multiple criteria (at least 2 bullet points or numbered items)
-    bullet_count = len(re.findall(r'^[\s]*[-*•]\s+', output, re.MULTILINE))
-    numbered_count = len(re.findall(r'^\s*\d+[.)]\s+', output, re.MULTILINE))
-    if bullet_count >= 2 or numbered_count >= 2:
-        checks_passed += 1
-
-    # Check 4: Criteria are testable (contain verifiable actions/states)
-    testable_words = ['should', 'must', 'will', 'is', 'are', 'displays', 'shows', 'returns', 'receives']
-    testable_count = sum(1 for word in testable_words if word in output_lower)
-    if testable_count >= 3:
-        checks_passed += 1
-
-    # Check 5: Mentions expected outcome
-    outcome_words = ['expected', 'result', 'outcome', 'then', 'should see', 'should be']
-    if any(word in output_lower for word in outcome_words):
-        checks_passed += 1
-
-    score = checks_passed / total_checks
-    return round(score, 2)
-
-
-def evaluate_user_story_format(output: str, reference: Dict[str, Any] = None) -> float:
-    """
-    Evaluate adherence to standard User Story format.
-
-    Checks for:
-    - "As a [user type]" statement
-    - "I want [goal]" statement
-    - "So that [benefit]" statement
-    - Proper markdown structure
-    - Clear title
-
-    Args:
-        output: The generated User Story text.
-        reference: Optional reference data (bug report) for context.
-
-    Returns:
-        Score between 0.0 and 1.0.
-
-    Example:
-        >>> output = "**As a** user **I want** to login **So that** I can access"
-        >>> score = evaluate_user_story_format(output)
-        >>> score > 0.6
-        True
-    """
-    if not output or not output.strip():
-        return 0.0
-
-    score = 0.0
-    checks_passed = 0
-    total_checks = 5
-
-    output_lower = output.lower()
-
-    # Check 1: Contains "As a [user type]" pattern
-    as_a_patterns = [
-        r'as\s+a[n]?\s+\w+',
-        r'\*\*as\s+a[n]?\*\*',
-        r'como\s+um[a]?\s+\w+'  # Portuguese
-    ]
-    if any(re.search(p, output_lower) for p in as_a_patterns):
-        checks_passed += 1
-
-    # Check 2: Contains "I want [goal]" pattern
-    i_want_patterns = [
-        r'i\s+want\s+',
-        r'\*\*i\s+want\*\*',
-        r'eu\s+quero'  # Portuguese
-    ]
-    if any(re.search(p, output_lower) for p in i_want_patterns):
-        checks_passed += 1
-
-    # Check 3: Contains "So that [benefit]" pattern
-    so_that_patterns = [
-        r'so\s+that\s+',
-        r'\*\*so\s+that\*\*',
-        r'para\s+que'  # Portuguese
-    ]
-    if any(re.search(p, output_lower) for p in so_that_patterns):
-        checks_passed += 1
-
-    # Check 4: Has title/header
-    title_patterns = [
-        r'^#+ .+',  # Markdown header
-        r'^user story:',
-        r'^\*\*.+\*\*'  # Bold text at start
-    ]
-    if any(re.search(p, output_lower, re.MULTILINE) for p in title_patterns):
-        checks_passed += 1
-
-    # Check 5: Contains structured sections (headers, bullets, or numbered lists)
-    has_structure = bool(
-        re.search(r'^#+\s+', output, re.MULTILINE) or
-        re.search(r'^[\s]*[-*•]\s+', output, re.MULTILINE) or
-        re.search(r'^\s*\d+[.)]\s+', output, re.MULTILINE)
-    )
-    if has_structure:
-        checks_passed += 1
-
-    score = checks_passed / total_checks
-    return round(score, 2)
-
-
-def evaluate_completeness(output: str, reference: Dict[str, Any] = None) -> float:
-    """
-    Evaluate how completely the User Story covers the bug report.
-
-    Checks for:
-    - Addresses the core issue from bug report
-    - Includes relevant context
-    - Mentions priority/severity
-    - Considers edge cases or technical notes
-    - Sufficient detail level
-
-    Args:
-        output: The generated User Story text.
-        reference: Optional reference data (bug report) for context.
-
-    Returns:
-        Score between 0.0 and 1.0.
-
-    Example:
-        >>> output = "## Fix Login Bug\\n\\nAs a user...\\n\\n### Priority: High"
-        >>> score = evaluate_completeness(output)
-        >>> score > 0.5
-        True
-    """
-    if not output or not output.strip():
-        return 0.0
-
-    score = 0.0
-    checks_passed = 0
-    total_checks = 5
-
-    output_lower = output.lower()
-
-    # Check 1: Sufficient length (indicates detailed coverage)
-    word_count = len(output.split())
-    if word_count >= 75:
-        checks_passed += 1
-
-    # Check 2: Mentions priority or severity
-    priority_words = ['priority', 'severity', 'critical', 'high', 'medium', 'low', 'urgent']
-    if any(word in output_lower for word in priority_words):
-        checks_passed += 1
-
-    # Check 3: Contains technical context or notes
-    tech_patterns = ['technical', 'note', 'implementation', 'backend', 'frontend', 'api', 'database', 'fix']
-    if any(pattern in output_lower for pattern in tech_patterns):
-        checks_passed += 1
-
-    # Check 4: Has multiple sections (indicates comprehensive coverage)
-    section_markers = re.findall(r'^#+\s+', output, re.MULTILINE)
-    if len(section_markers) >= 2:
-        checks_passed += 1
-
-    # Check 5: Addresses user impact or benefit
-    impact_words = ['user', 'customer', 'benefit', 'experience', 'access', 'able to', 'can']
-    impact_count = sum(1 for word in impact_words if word in output_lower)
-    if impact_count >= 2:
-        checks_passed += 1
-
-    score = checks_passed / total_checks
-    return round(score, 2)
-
-
-# Metric registry for evaluation framework
-METRICS: Dict[str, Callable] = {
-    "tone_score": evaluate_tone,
-    "acceptance_criteria_score": evaluate_acceptance_criteria,
-    "user_story_format_score": evaluate_user_story_format,
-    "completeness_score": evaluate_completeness
-}
-
-# Passing threshold for all metrics
-PASSING_THRESHOLD = 0.9
-
-
-def evaluate_all(output: str, reference: Dict[str, Any] = None) -> Dict[str, float]:
-    """
-    Run all metrics on the given output.
-
-    Args:
-        output: The generated User Story text.
-        reference: Optional reference data (bug report) for context.
-
-    Returns:
-        Dictionary with all metric scores and overall status.
-
-    Example:
-        >>> results = evaluate_all("## User Story\\n\\n**As a** user...")
-        >>> 'tone_score' in results
-        True
-        >>> 'average' in results
-        True
-    """
-    results = {}
-
-    for metric_name, metric_func in METRICS.items():
-        results[metric_name] = metric_func(output, reference)
-
-    # Calculate average
-    results['average'] = round(
-        sum(results[k] for k in METRICS.keys()) / len(METRICS),
-        2
-    )
-
-    # Determine pass/fail status
-    all_passing = all(results[k] >= PASSING_THRESHOLD for k in METRICS.keys())
-    results['status'] = 'APPROVED' if all_passing else 'FAILED'
-
-    return results
-
-
-if __name__ == "__main__":
-    # Test with a sample User Story
-    sample_output = """
-## User Story: Fix Mobile Login Button
-
-**As a** mobile user
-**I want** to click the login button successfully
-**So that** I can access my account on mobile devices
-
-### Acceptance Criteria
-
-- Given I am on the login page on a mobile device
-- When I tap the login button
-- Then I should be logged in or see validation errors
-
-- Given I enter invalid credentials
-- When I tap the login button
-- Then I should see an appropriate error message
-
-### Priority: High
-
-### Technical Notes
-- Check touch event handling on mobile browsers
-- Verify button z-index and clickable area
-- Test on iOS Safari and Android Chrome
+NÃO adicione nenhum texto antes ou depois do JSON.
 """
 
-    print("Metrics Evaluation Test")
-    print("=" * 40)
-    results = evaluate_all(sample_output)
+    try:
+        llm = get_evaluator_llm()
+        response = llm.invoke([HumanMessage(content=evaluator_prompt)])
+        result = extract_json_from_response(response.content)
 
-    for metric, score in results.items():
-        if metric in ['average', 'status']:
-            continue
-        status = "✓" if score >= PASSING_THRESHOLD else "✗"
-        print(f"{status} {metric}: {score}")
+        precision = float(result.get("precision", 0.0))
+        recall = float(result.get("recall", 0.0))
 
-    print("-" * 40)
-    print(f"Average: {results['average']}")
-    print(f"Status: {results['status']}")
+        # Calcular F1-Score
+        if (precision + recall) > 0:
+            f1_score = 2 * (precision * recall) / (precision + recall)
+        else:
+            f1_score = 0.0
+
+        return {
+            "score": round(f1_score, 4),
+            "precision": round(precision, 4),
+            "recall": round(recall, 4),
+            "reasoning": result.get("reasoning", "")
+        }
+
+    except Exception as e:
+        print(f"❌ Erro ao avaliar F1-Score: {e}")
+        return {
+            "score": 0.0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "reasoning": f"Erro na avaliação: {str(e)}"
+        }
+
+
+def evaluate_clarity(question: str, answer: str, reference: str) -> Dict[str, Any]:
+    """
+    Avalia a clareza e estrutura da resposta usando LLM-as-Judge.
+
+    Critérios:
+    - Organização e estrutura clara
+    - Linguagem simples e direta
+    - Ausência de ambiguidade
+    - Fácil de entender
+
+    Args:
+        question: Pergunta feita pelo usuário
+        answer: Resposta gerada pelo prompt
+        reference: Resposta esperada (ground truth)
+
+    Returns:
+        Dict com score e reasoning:
+        {
+            "score": 0.92,
+            "reasoning": "Explicação do LLM..."
+        }
+    """
+    evaluator_prompt = f"""
+Você é um avaliador especializado em medir a CLAREZA de respostas geradas por IA.
+
+PERGUNTA DO USUÁRIO:
+{question}
+
+RESPOSTA GERADA PELO MODELO:
+{answer}
+
+RESPOSTA ESPERADA (Referência):
+{reference}
+
+INSTRUÇÕES:
+
+Avalie a CLAREZA da resposta gerada com base nos critérios:
+
+1. ORGANIZAÇÃO (0.0 a 1.0):
+   - A resposta tem estrutura lógica e bem organizada?
+   - Informações estão em ordem sensata?
+
+2. LINGUAGEM (0.0 a 1.0):
+   - Usa linguagem simples e direta?
+   - Evita jargões desnecessários?
+   - Fácil de entender?
+
+3. AUSÊNCIA DE AMBIGUIDADE (0.0 a 1.0):
+   - A resposta é clara e sem ambiguidades?
+   - Não deixa dúvidas sobre o que está sendo comunicado?
+
+4. CONCISÃO (0.0 a 1.0):
+   - É concisa sem ser curta demais?
+   - Não tem informações redundantes?
+
+Calcule a MÉDIA dos 4 critérios para obter o score final.
+
+IMPORTANTE: Retorne APENAS um objeto JSON válido no formato:
+{{
+  "score": <valor entre 0.0 e 1.0>,
+  "reasoning": "<explicação detalhada da avaliação em até 100 palavras>"
+}}
+
+NÃO adicione nenhum texto antes ou depois do JSON.
+"""
+
+    try:
+        llm = get_evaluator_llm()
+        response = llm.invoke([HumanMessage(content=evaluator_prompt)])
+        result = extract_json_from_response(response.content)
+
+        score = float(result.get("score", 0.0))
+
+        return {
+            "score": round(score, 4),
+            "reasoning": result.get("reasoning", "")
+        }
+
+    except Exception as e:
+        print(f"❌ Erro ao avaliar Clarity: {e}")
+        return {
+            "score": 0.0,
+            "reasoning": f"Erro na avaliação: {str(e)}"
+        }
+
+
+def evaluate_precision(question: str, answer: str, reference: str) -> Dict[str, Any]:
+    """
+    Avalia a precisão da resposta usando LLM-as-Judge.
+
+    Critérios:
+    - Ausência de informações inventadas (alucinações)
+    - Resposta focada na pergunta
+    - Informações corretas e verificáveis
+
+    Args:
+        question: Pergunta feita pelo usuário
+        answer: Resposta gerada pelo prompt
+        reference: Resposta esperada (ground truth)
+
+    Returns:
+        Dict com score e reasoning:
+        {
+            "score": 0.98,
+            "reasoning": "Explicação do LLM..."
+        }
+    """
+    
+    evaluator_prompt = f"""
+Você é um avaliador especializado em detectar PRECISÃO e ALUCINAÇÕES em respostas de IA.
+
+PERGUNTA DO USUÁRIO:
+{question}
+
+RESPOSTA GERADA PELO MODELO:
+{answer}
+
+RESPOSTA ESPERADA (Ground Truth):
+{reference}
+
+INSTRUÇÕES:
+
+Avalie a PRECISÃO da resposta gerada:
+
+1. AUSÊNCIA DE ALUCINAÇÕES (0.0 a 1.0):
+   - A resposta contém informações INVENTADAS ou não verificáveis?
+   - Todas as afirmações são baseadas em fatos?
+   - 1.0 = nenhuma alucinação detectada
+   - 0.0 = resposta cheia de informações inventadas
+
+2. FOCO NA PERGUNTA (0.0 a 1.0):
+   - A resposta responde EXATAMENTE o que foi perguntado?
+   - Não divaga ou adiciona informações não solicitadas?
+   - 1.0 = totalmente focada
+   - 0.0 = completamente fora do tópico
+
+3. CORREÇÃO FACTUAL (0.0 a 1.0):
+   - As informações estão CORRETAS quando comparadas com a referência?
+   - Não há erros ou imprecisões?
+   - 1.0 = todas informações corretas
+   - 0.0 = informações incorretas
+
+Calcule a MÉDIA dos 3 critérios para obter o score final.
+
+IMPORTANTE: Retorne APENAS um objeto JSON válido no formato:
+{{
+  "score": <valor entre 0.0 e 1.0>,
+  "reasoning": "<explicação detalhada em até 100 palavras, cite exemplos>"
+}}
+
+NÃO adicione nenhum texto antes ou depois do JSON.
+"""
+
+    try:
+        llm = get_evaluator_llm()
+        response = llm.invoke([HumanMessage(content=evaluator_prompt)])
+        result = extract_json_from_response(response.content)
+
+        score = float(result.get("score", 0.0))
+
+        return {
+            "score": round(score, 4),
+            "reasoning": result.get("reasoning", "")
+        }
+
+    except Exception as e:
+        print(f"❌ Erro ao avaliar Precision: {e}")
+        return {
+            "score": 0.0,
+            "reasoning": f"Erro na avaliação: {str(e)}"
+        }
+
+
+def evaluate_tone_score(bug_report: str, user_story: str, reference: str) -> Dict[str, Any]:
+    """
+    Avalia o tom da user story (profissional e empático).
+
+    Critérios específicos para Bug to User Story:
+    - Tom profissional mas não excessivamente técnico
+    - Empatia com o usuário afetado pelo bug
+    - Foco em valor de negócio, não apenas correção técnica
+    - Linguagem positiva (o que o usuário QUER fazer, não só o que não funciona)
+
+    Args:
+        bug_report: Descrição do bug original
+        user_story: User story gerada pelo prompt
+        reference: User story esperada (ground truth)
+
+    Returns:
+        Dict com score e reasoning
+    """
+    evaluator_prompt = f"""
+Você é um avaliador especializado em User Stories ágeis.
+
+BUG REPORT ORIGINAL:
+{bug_report}
+
+USER STORY GERADA:
+{user_story}
+
+USER STORY ESPERADA (Referência):
+{reference}
+
+INSTRUÇÕES:
+
+Avalie o TOM da user story gerada com base nos critérios:
+
+1. PROFISSIONALISMO (0.0 a 1.0):
+   - Usa linguagem profissional e apropriada para documentação?
+   - Evita jargões excessivos ou linguagem muito informal?
+   - Mantém padrão de qualidade de documentação ágil?
+
+2. EMPATIA COM USUÁRIO (0.0 a 1.0):
+   - Demonstra compreensão do impacto do bug no usuário?
+   - Foca na necessidade/frustração do usuário?
+   - Usa linguagem centrada no usuário ("Como um... eu quero...")?
+
+3. FOCO EM VALOR (0.0 a 1.0):
+   - Articula claramente o valor de negócio da solução?
+   - Vai além de "consertar o bug" e explica o benefício?
+   - Usa a estrutura "para que eu possa..." com valor real?
+
+4. LINGUAGEM POSITIVA (0.0 a 1.0):
+   - Foca no que o usuário QUER fazer (não só no que está quebrado)?
+   - Tom construtivo e orientado a solução?
+   - Evita linguagem negativa ou culpabilizante?
+
+Calcule a MÉDIA dos 4 critérios para obter o score final.
+
+IMPORTANTE: Retorne APENAS um objeto JSON válido no formato:
+{{
+  "score": <valor entre 0.0 e 1.0>,
+  "reasoning": "<explicação detalhada em até 150 palavras>"
+}}
+
+NÃO adicione nenhum texto antes ou depois do JSON.
+"""
+
+    try:
+        llm = get_evaluator_llm()
+        response = llm.invoke([HumanMessage(content=evaluator_prompt)])
+        result = extract_json_from_response(response.content)
+
+        score = float(result.get("score", 0.0))
+
+        return {
+            "score": round(score, 4),
+            "reasoning": result.get("reasoning", "")
+        }
+
+    except Exception as e:
+        print(f"❌ Erro ao avaliar Tone Score: {e}")
+        return {
+            "score": 0.0,
+            "reasoning": f"Erro na avaliação: {str(e)}"
+        }
+
+
+def evaluate_acceptance_criteria_score(bug_report: str, user_story: str, reference: str) -> Dict[str, Any]:
+    """
+    Avalia a qualidade dos critérios de aceitação.
+
+    Critérios específicos:
+    - Usa formato Given-When-Then ou similar estruturado
+    - Critérios são específicos e testáveis
+    - Quantidade adequada (3-7 critérios idealmente)
+    - Cobertura completa do bug e solução
+    - Incluem cenários de edge case quando relevante
+
+    Args:
+        bug_report: Descrição do bug original
+        user_story: User story gerada pelo prompt
+        reference: User story esperada (ground truth)
+
+    Returns:
+        Dict com score e reasoning
+    """
+    evaluator_prompt = f"""
+Você é um avaliador especializado em Critérios de Aceitação de User Stories.
+
+BUG REPORT ORIGINAL:
+{bug_report}
+
+USER STORY GERADA:
+{user_story}
+
+USER STORY ESPERADA (Referência):
+{reference}
+
+INSTRUÇÕES:
+
+Avalie os CRITÉRIOS DE ACEITAÇÃO da user story gerada:
+
+1. FORMATO ESTRUTURADO (0.0 a 1.0):
+   - Usa formato Given-When-Then ou estrutura similar?
+   - Cada critério é claramente separado e identificável?
+   - Formatação facilita leitura e entendimento?
+
+2. ESPECIFICIDADE E TESTABILIDADE (0.0 a 1.0):
+   - Critérios são específicos e não vagos?
+   - É possível criar testes automatizados a partir deles?
+   - Evita termos ambíguos como "deve funcionar bem"?
+   - Critérios mensuráveis e verificáveis?
+
+3. QUANTIDADE ADEQUADA (0.0 a 1.0):
+   - Tem quantidade apropriada de critérios (nem muito, nem pouco)?
+   - Ideal: 3-7 critérios para bugs simples/médios
+   - Bugs complexos podem ter mais critérios organizados
+
+4. COBERTURA COMPLETA (0.0 a 1.0):
+   - Cobre todos os aspectos do bug?
+   - Inclui cenários de sucesso e erro?
+   - Considera edge cases quando relevante?
+   - Aborda validações e requisitos técnicos do bug?
+
+Calcule a MÉDIA dos 4 critérios para obter o score final.
+
+IMPORTANTE: Retorne APENAS um objeto JSON válido no formato:
+{{
+  "score": <valor entre 0.0 e 1.0>,
+  "reasoning": "<explicação detalhada com exemplos específicos, até 150 palavras>"
+}}
+
+NÃO adicione nenhum texto antes ou depois do JSON.
+"""
+
+    try:
+        llm = get_evaluator_llm()
+        response = llm.invoke([HumanMessage(content=evaluator_prompt)])
+        result = extract_json_from_response(response.content)
+
+        score = float(result.get("score", 0.0))
+
+        return {
+            "score": round(score, 4),
+            "reasoning": result.get("reasoning", "")
+        }
+
+    except Exception as e:
+        print(f"❌ Erro ao avaliar Acceptance Criteria Score: {e}")
+        return {
+            "score": 0.0,
+            "reasoning": f"Erro na avaliação: {str(e)}"
+        }
+
+
+def evaluate_user_story_format_score(bug_report: str, user_story: str, reference: str) -> Dict[str, Any]:
+    """
+    Avalia se a user story segue o formato padrão correto.
+
+    Formato esperado:
+    - "Como um [tipo de usuário]"
+    - "Eu quero [ação/funcionalidade]"
+    - "Para que [benefício/valor]"
+    - Critérios de Aceitação claramente separados
+
+    Args:
+        bug_report: Descrição do bug original
+        user_story: User story gerada pelo prompt
+        reference: User story esperada (ground truth)
+
+    Returns:
+        Dict com score e reasoning
+    """
+    evaluator_prompt = f"""
+Você é um avaliador especializado em formato de User Stories ágeis.
+
+BUG REPORT ORIGINAL:
+{bug_report}
+
+USER STORY GERADA:
+{user_story}
+
+USER STORY ESPERADA (Referência):
+{reference}
+
+INSTRUÇÕES:
+
+Avalie o FORMATO da user story gerada:
+
+1. TEMPLATE PADRÃO (0.0 a 1.0):
+   - Segue o formato "Como um [usuário], eu quero [ação], para que [benefício]"?
+   - Todas as três partes estão presentes e corretas?
+   - Ordem e estrutura seguem as melhores práticas?
+
+2. IDENTIFICAÇÃO DE PERSONA (0.0 a 1.0):
+   - "Como um..." identifica claramente o tipo de usuário?
+   - Persona é específica e relevante para o bug?
+   - Evita genéricos como "Como um usuário" sem contexto?
+
+3. AÇÃO CLARA (0.0 a 1.0):
+   - "Eu quero..." descreve claramente a ação/funcionalidade desejada?
+   - Ação é específica e relacionada ao bug?
+   - Evita descrições vagas ou muito técnicas?
+
+4. BENEFÍCIO ARTICULADO (0.0 a 1.0):
+   - "Para que..." explica claramente o valor/benefício?
+   - Benefício é real e significativo (não trivial)?
+   - Conecta a ação ao valor de negócio?
+
+5. SEPARAÇÃO DE SEÇÕES (0.0 a 1.0):
+   - User story principal está claramente separada dos critérios?
+   - Critérios de aceitação têm seção própria?
+   - Estrutura facilita leitura e navegação?
+
+Calcule a MÉDIA dos 5 critérios para obter o score final.
+
+IMPORTANTE: Retorne APENAS um objeto JSON válido no formato:
+{{
+  "score": <valor entre 0.0 e 1.0>,
+  "reasoning": "<explicação detalhada com exemplos, até 150 palavras>"
+}}
+
+NÃO adicione nenhum texto antes ou depois do JSON.
+"""
+
+    try:
+        llm = get_evaluator_llm()
+        response = llm.invoke([HumanMessage(content=evaluator_prompt)])
+        result = extract_json_from_response(response.content)
+
+        score = float(result.get("score", 0.0))
+
+        return {
+            "score": round(score, 4),
+            "reasoning": result.get("reasoning", "")
+        }
+
+    except Exception as e:
+        print(f"❌ Erro ao avaliar User Story Format Score: {e}")
+        return {
+            "score": 0.0,
+            "reasoning": f"Erro na avaliação: {str(e)}"
+        }
+
+
+def evaluate_completeness_score(bug_report: str, user_story: str, reference: str) -> Dict[str, Any]:
+    """
+    Avalia a completude da user story em relação ao bug.
+
+    Critérios específicos baseados na complexidade do bug:
+    - Bugs simples: cobre o problema básico
+    - Bugs médios: inclui contexto técnico relevante
+    - Bugs complexos: aborda múltiplos aspectos, impacto, tasks técnicas
+
+    Args:
+        bug_report: Descrição do bug original
+        user_story: User story gerada pelo prompt
+        reference: User story esperada (ground truth)
+
+    Returns:
+        Dict com score e reasoning
+    """
+    evaluator_prompt = f"""
+Você é um avaliador especializado em completude de User Stories derivadas de bugs.
+
+BUG REPORT ORIGINAL:
+{bug_report}
+
+USER STORY GERADA:
+{user_story}
+
+USER STORY ESPERADA (Referência):
+{reference}
+
+INSTRUÇÕES:
+
+Avalie a COMPLETUDE da user story em relação ao bug:
+
+1. COBERTURA DO PROBLEMA (0.0 a 1.0):
+   - A user story aborda TODOS os aspectos do bug reportado?
+   - Nenhum detalhe importante foi omitido?
+   - Se bug menciona múltiplos problemas, todos são cobertos?
+
+2. CONTEXTO TÉCNICO (0.0 a 1.0):
+   - Quando o bug inclui detalhes técnicos (logs, stack traces, endpoints):
+     * User story preserva contexto técnico relevante?
+     * Informações técnicas são incluídas de forma apropriada?
+   - Bugs simples não precisam de muito contexto técnico
+   - Bugs complexos DEVEM incluir seção de contexto técnico
+
+3. IMPACTO E SEVERIDADE (0.0 a 1.0):
+   - Se o bug menciona impacto (usuários afetados, perda financeira):
+     * User story reconhece e documenta o impacto?
+   - Severidade é refletida na priorização implícita?
+   - Bugs críticos devem ter tratamento mais detalhado
+
+4. TASKS TÉCNICAS (0.0 a 1.0):
+   - Para bugs complexos com múltiplos componentes:
+     * User story sugere tasks técnicas ou breakdown?
+   - Para bugs simples/médios:
+     * Tasks não são necessárias (não penalizar ausência)
+   - Avalie se o nível de detalhe é apropriado à complexidade
+
+5. INFORMAÇÕES ADICIONAIS RELEVANTES (0.0 a 1.0):
+   - Se bug menciona: steps to reproduce, ambiente, logs
+     * User story preserva ou referencia essas informações?
+   - Contexto de negócio importante é mantido?
+   - Sugestões de solução são apropriadas?
+
+Calcule a MÉDIA dos 5 critérios para obter o score final.
+
+IMPORTANTE:
+- Bugs SIMPLES podem ter score alto mesmo sem muitos detalhes técnicos
+- Bugs COMPLEXOS DEVEM ter seções adicionais (contexto técnico, tasks, impacto)
+- Compare com a referência para calibrar expectativa de completude
+
+Retorne APENAS um objeto JSON válido no formato:
+{{
+  "score": <valor entre 0.0 e 1.0>,
+  "reasoning": "<explicação detalhada sobre o que foi bem coberto e o que faltou, até 200 palavras>"
+}}
+
+NÃO adicione nenhum texto antes ou depois do JSON.
+"""
+
+    try:
+        llm = get_evaluator_llm()
+        response = llm.invoke([HumanMessage(content=evaluator_prompt)])
+        result = extract_json_from_response(response.content)
+
+        score = float(result.get("score", 0.0))
+
+        return {
+            "score": round(score, 4),
+            "reasoning": result.get("reasoning", "")
+        }
+
+    except Exception as e:
+        print(f"❌ Erro ao avaliar Completeness Score: {e}")
+        return {
+            "score": 0.0,
+            "reasoning": f"Erro na avaliação: {str(e)}"
+        }
+
+
+# Exemplo de uso e testes
+if __name__ == "__main__":
+    # Mostrar provider configurado
+    provider = os.getenv("LLM_PROVIDER", "openai")
+    eval_model = os.getenv("EVAL_MODEL", "gpt-4o")
+
+    print("=" * 70)
+    print("TESTANDO MÉTRICAS CUSTOMIZADAS")
+    print("=" * 70)
+    print(f"\n📊 Provider: {provider}")
+    print(f"🤖 Modelo de Avaliação: {eval_model}\n")
+
+    print("=" * 70)
+    print("PARTE 1: MÉTRICAS GERAIS")
+    print("=" * 70)
+
+    # Teste das métricas gerais
+    test_question = "Qual o horário de funcionamento da loja?"
+    test_answer = "A loja funciona de segunda a sexta das 9h às 18h."
+    test_reference = "Horário de funcionamento: Segunda a Sexta 9:00-18:00, Sábado 9:00-14:00"
+
+    print("\n1. F1-Score:")
+    f1_result = evaluate_f1_score(test_question, test_answer, test_reference)
+    print(f"   Score: {f1_result['score']:.2f}")
+    print(f"   Precision: {f1_result['precision']:.2f}")
+    print(f"   Recall: {f1_result['recall']:.2f}")
+    print(f"   Reasoning: {f1_result['reasoning']}\n")
+
+    print("2. Clarity:")
+    clarity_result = evaluate_clarity(test_question, test_answer, test_reference)
+    print(f"   Score: {clarity_result['score']:.2f}")
+    print(f"   Reasoning: {clarity_result['reasoning']}\n")
+
+    print("3. Precision:")
+    precision_result = evaluate_precision(test_question, test_answer, test_reference)
+    print(f"   Score: {precision_result['score']:.2f}")
+    print(f"   Reasoning: {precision_result['reasoning']}\n")
+
+    print("=" * 70)
+    print("PARTE 2: MÉTRICAS ESPECÍFICAS PARA BUG TO USER STORY")
+    print("=" * 70)
+
+    # Teste das métricas específicas de Bug to User Story
+    test_bug = "Botão de adicionar ao carrinho não funciona no produto ID 1234."
+    test_user_story = """Como um cliente navegando na loja, eu quero adicionar produtos ao meu carrinho de compras, para que eu possa continuar comprando e finalizar minha compra depois.
+
+Critérios de Aceitação:
+- Dado que estou visualizando um produto
+- Quando clico no botão "Adicionar ao Carrinho"
+- Então o produto deve ser adicionado ao carrinho
+- E devo ver uma confirmação visual
+- E o contador do carrinho deve ser atualizado"""
+
+    test_reference_story = test_user_story  # Usando o mesmo para teste
+
+    print("\n4. Tone Score (Tom profissional e empático):")
+    tone_result = evaluate_tone_score(test_bug, test_user_story, test_reference_story)
+    print(f"   Score: {tone_result['score']:.2f}")
+    print(f"   Reasoning: {tone_result['reasoning']}\n")
+
+    print("5. Acceptance Criteria Score (Qualidade dos critérios):")
+    criteria_result = evaluate_acceptance_criteria_score(test_bug, test_user_story, test_reference_story)
+    print(f"   Score: {criteria_result['score']:.2f}")
+    print(f"   Reasoning: {criteria_result['reasoning']}\n")
+
+    print("6. User Story Format Score (Formato correto):")
+    format_result = evaluate_user_story_format_score(test_bug, test_user_story, test_reference_story)
+    print(f"   Score: {format_result['score']:.2f}")
+    print(f"   Reasoning: {format_result['reasoning']}\n")
+
+    print("7. Completeness Score (Completude e contexto):")
+    completeness_result = evaluate_completeness_score(test_bug, test_user_story, test_reference_story)
+    print(f"   Score: {completeness_result['score']:.2f}")
+    print(f"   Reasoning: {completeness_result['reasoning']}\n")
+
+    print("=" * 70)
+    print("✅ TODOS OS TESTES CONCLUÍDOS!")
+    print("=" * 70)

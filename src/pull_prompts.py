@@ -66,13 +66,14 @@ def pull_prompt(prompt_name: str) -> dict:
         >>> 'messages' in str(type(prompt_data))
         True
     """
-    # Import hub from langchain package (modern API)
-    from langchain import hub
+    # Import using the modern LangSmith SDK API
+    from langsmith import Client
 
     print(f"Pulling prompt from LangSmith Hub...")
     print(f"Prompt: {prompt_name}")
 
-    prompt = hub.pull(prompt_name)
+    client = Client()
+    prompt = client.pull_prompt(prompt_name)
     return prompt
 
 

@@ -14,11 +14,15 @@ import os
 import sys
 from pathlib import Path
 from typing import Dict, Any, List
+from dotenv import load_dotenv
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
 
-from utils import load_env, load_yaml, print_error, print_success, validate_env_vars
+from utils import load_yaml, check_env_vars
+
+# Load environment variables
+load_dotenv()
 
 
 # Configuration
@@ -47,7 +51,10 @@ def load_prompt_from_yaml(file_path: str) -> Dict[str, Any]:
     if not os.path.exists(file_path):
         raise FileNotFoundError(f"Optimized prompt file not found at {file_path}")
 
-    return load_yaml(file_path)
+    data = load_yaml(file_path)
+    if data is None:
+        raise ValueError(f"Failed to parse YAML file: {file_path}")
+    return data
 
 
 def validate_prompt_structure(prompt_data: Dict[str, Any]) -> List[str]:
@@ -141,9 +148,9 @@ def push_prompt(prompt_data: Dict[str, Any], prompt_name: str, is_public: bool =
         >>> '/' in full_name
         True
     """
-    # Import hub from langchain package (modern API)
-    from langchain import hub
-    from langchain_core.prompts import ChatPromptTemplate, SystemMessagePromptTemplate, HumanMessagePromptTemplate
+    # Import using the modern LangSmith SDK API
+    from langsmith import Client
+    from langchain_core.prompts import ChatPromptTemplate
 
     print("Pushing to LangSmith Hub...")
 
@@ -153,16 +160,33 @@ def push_prompt(prompt_data: Dict[str, Any], prompt_name: str, is_public: bool =
 
     # Create the prompt template
     prompt_template = ChatPromptTemplate.from_messages([
-        SystemMessagePromptTemplate.from_template(system_prompt),
-        HumanMessagePromptTemplate.from_template(user_template)
+        ("system", system_prompt),
+        ("user", user_template)
     ])
 
-    # Push to hub with public visibility
-    result = hub.push(
-        prompt_name,
-        prompt_template,
-        new_repo_is_public=is_public
-    )
+    # Initialize the LangSmith client
+    client = Client()
+
+    # Push to hub
+    # Note: If you don't have a LangChain Hub handle yet, push as private first
+    # then make it public via the web interface at https://smith.langchain.com/prompts
+    try:
+        result = client.push_prompt(
+            prompt_name,
+            object=prompt_template,
+            is_public=is_public
+        )
+    except Exception as e:
+        if "public prompt" in str(e).lower() and "handle" in str(e).lower():
+            print("Note: Cannot create public prompt without a LangChain Hub handle.")
+            print("Pushing as PRIVATE instead. You can make it public later via the web interface.")
+            result = client.push_prompt(
+                prompt_name,
+                object=prompt_template,
+                is_public=False
+            )
+        else:
+            raise
 
     return result
 
@@ -183,13 +207,9 @@ def main() -> int:
         True
     """
     try:
-        # Step 1: Load credentials
-        if not load_env():
-            print_error("No .env file found. Please create one based on .env.example")
-            return 1
-
+        # Step 1: Check credentials
         required_vars = ["LANGCHAIN_API_KEY"]
-        if not validate_env_vars(required_vars):
+        if not check_env_vars(required_vars):
             return 1
 
         # Step 2: Load prompt from YAML
@@ -197,14 +217,14 @@ def main() -> int:
         try:
             prompt_data = load_prompt_from_yaml(INPUT_PATH)
         except FileNotFoundError:
-            print_error(f"Optimized prompt file not found at {INPUT_PATH}")
+            print(f"❌ Optimized prompt file not found at {INPUT_PATH}")
             print("Please create the optimized prompt first.")
             return 1
 
         # Step 3: Validate prompt structure
         validation_errors = validate_prompt_structure(prompt_data)
         if validation_errors:
-            print_error("Invalid prompt structure:")
+            print("❌ Invalid prompt structure:")
             for error in validation_errors:
                 print(f"  - {error}")
             return 1
@@ -226,21 +246,21 @@ def main() -> int:
         except Exception as e:
             error_msg = str(e).lower()
             if 'auth' in error_msg or '401' in error_msg or '403' in error_msg:
-                print_error("Authentication failed. Please check your LANGCHAIN_API_KEY in .env")
+                print("❌ Authentication failed. Please check your LANGCHAIN_API_KEY in .env")
             elif 'connection' in error_msg or 'network' in error_msg or 'timeout' in error_msg:
-                print_error("Unable to connect to LangSmith Hub. Please check your internet connection.")
+                print("❌ Unable to connect to LangSmith Hub. Please check your internet connection.")
             else:
-                print_error(f"Failed to push prompt: {e}")
+                print(f"❌ Failed to push prompt: {e}")
             return 1
 
-        print_success("Push completed successfully!")
+        print("✓ Push completed successfully!")
         return 0
 
     except KeyboardInterrupt:
         print("\nOperation cancelled by user.")
         return 1
     except Exception as e:
-        print_error(f"Unexpected error: {e}")
+        print(f"❌ Unexpected error: {e}")
         return 1
 
 
