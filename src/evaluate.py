@@ -216,7 +216,8 @@ def evaluate_prompt(
 
         print("   Avaliando exemplos...")
 
-        for i, example in enumerate(examples[:10], 1):
+        total_examples = len(examples)
+        for i, example in enumerate(examples, 1):
             result = evaluate_prompt_on_example(prompt_template, example, llm)
 
             if result["answer"]:
@@ -231,7 +232,7 @@ def evaluate_prompt(
                 user_story_format_scores.append(format_score["score"])
                 completeness_scores.append(completeness["score"])
 
-                print(f"      [{i}/{min(10, len(examples))}] Tone:{tone['score']:.2f} AC:{acceptance['score']:.2f} Format:{format_score['score']:.2f} Complete:{completeness['score']:.2f}")
+                print(f"      [{i}/{total_examples}] Tone:{tone['score']:.2f} AC:{acceptance['score']:.2f} Format:{format_score['score']:.2f} Complete:{completeness['score']:.2f}")
 
         # Calcular médias das 4 métricas específicas
         avg_tone = sum(tone_scores) / len(tone_scores) if tone_scores else 0.0
