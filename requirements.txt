@@ -1,0 +1,22 @@
+# LangChain/LangSmith Prompt Engineering Challenge Dependencies
+# Python 3.9+ required
+
+# LangChain ecosystem
+langchain>=0.1.0
+langchain-core>=0.1.0
+langchain-community>=0.0.10
+langchain-openai>=0.0.5
+langchain-google-genai>=0.0.6
+langsmith>=0.0.77
+langchainhub>=0.1.14
+
+# Environment and configuration
+python-dotenv>=1.0.0
+pyyaml>=6.0.1
+
+# Testing
+pytest>=7.4.0
+pytest-cov>=4.1.0
+
+# Utilities
+requests>=2.31.0

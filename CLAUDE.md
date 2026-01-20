@@ -75,3 +75,10 @@ Required in `.env`:
 - `LANGCHAIN_API_KEY` - LangSmith API key
 - `LANGCHAIN_TRACING_V2=true`
 - `OPENAI_API_KEY` or `GOOGLE_API_KEY`
+
+## Active Technologies
+- Python 3.9+ + LangChain, LangSmith, langchain-openai, langchain-google-genai, python-dotenv, PyYAML (001-prompt-optimization)
+- Local YAML files in `prompts/` directory (001-prompt-optimization)
+
+## Recent Changes
+- 001-prompt-optimization: Added Python 3.9+ + LangChain, LangSmith, langchain-openai, langchain-google-genai, python-dotenv, PyYAML
